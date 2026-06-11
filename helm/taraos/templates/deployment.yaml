@@ -33,6 +33,14 @@ spec:
               value: "0.0.0.0"
             - name: DATA_PATH
               value: "/data"
+            {{- if .Values.selfUpdate.enabled }}
+            - name: HELM_PATH
+              value: {{ .Values.selfUpdate.helmPath | quote }}
+            - name: KUBECONFIG
+              value: {{ .Values.selfUpdate.kubeconfigPath | quote }}
+            - name: HELM_CHART
+              value: {{ .Values.selfUpdate.chartPath | quote }}
+            {{- end }}
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu | quote }}
@@ -65,6 +73,14 @@ spec:
               mountPath: /var/run/docker.sock
               readOnly: true
             {{- end }}
+            {{- if .Values.selfUpdate.enabled }}
+            - name: kubeconfig
+              mountPath: {{ .Values.selfUpdate.kubeconfigPath | quote }}
+              readOnly: true
+            - name: helm-charts
+              mountPath: /home/pi/helm-charts/taraos
+              readOnly: true
+            {{- end }}
             - name: sys
               mountPath: /sys
               readOnly: true
@@ -87,6 +103,16 @@ spec:
           hostPath:
             path: /var/run/docker.sock
             type: Socket
+        {{- end }}
+        {{- if .Values.selfUpdate.enabled }}
+        - name: kubeconfig
+          hostPath:
+            path: {{ .Values.selfUpdate.kubeconfigPath | quote }}
+            type: File
+        - name: helm-charts
+          hostPath:
+            path: {{ .Values.selfUpdate.chartPath | quote }}
+            type: Directory
         {{- end }}
         - name: sys
           hostPath:

@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.0] — 2026-06-11
+
+### Added in 1.3.0
+
+- **Check for updates** — `GET /api/update` polls GitHub Releases API (cached 30 min) and returns `{ current, latest, hasUpdate }`
+- **One-click update** — `POST /api/update` runs `helm upgrade` inside the container; pod restarts automatically with new image
+- **UpdateBanner** — glass morphism banner on dashboard when a newer version is available; dismissable per session; shows spinner + polls until pod restarts then reloads page
+- `helm` binary installed in Docker image (runner stage) for self-update
+- Helm chart: kubeconfig + helm-chart hostPath mounts, `HELM_PATH`/`KUBECONFIG`/`HELM_CHART` env vars, `selfUpdate` values block
+
+---
+
 ## [1.2.0] — 2026-06-11
 
 ### Added in 1.2.0

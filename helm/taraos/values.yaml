@@ -3,7 +3,7 @@
 
 image:
   repository: pmananthu/taraos
-  tag: "1.2.0"
+  tag: "1.3.0"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -37,3 +37,9 @@ resources:
 probes:
   initialDelaySeconds: 15
   periodSeconds: 30
+
+selfUpdate:
+  enabled: true
+  helmPath: "/usr/local/bin/helm"
+  kubeconfigPath: "/etc/rancher/k3s/k3s.yaml"
+  chartPath: "/home/pi/helm-charts/taraos"

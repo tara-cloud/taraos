@@ -7,6 +7,7 @@ import { loadSettings, getCachedSettings } from "@/lib/settings";
 const ClockWidget       = dynamic(() => import("@/components/widgets/ClockWidget"),       { ssr: false });
 const WeatherWidget     = dynamic(() => import("@/components/widgets/WeatherWidget"),     { ssr: false });
 const AppLauncherWidget = dynamic(() => import("@/components/widgets/AppLauncherWidget"), { ssr: false });
+const UpdateBanner      = dynamic(() => import("@/components/UpdateBanner"),              { ssr: false });
 
 export default function Dashboard() {
   const [bgType,  setBgType]  = useState("Gradient");
@@ -44,6 +45,8 @@ export default function Dashboard() {
       style={{ minHeight: "100vh", ...backgroundStyle }}
     >
       <div className="glass-bar" style={{ position: "sticky", top: 0, zIndex: 100, height: 52 }} />
+
+      <UpdateBanner />
 
       <div className="dashboard-grid" style={{ paddingTop: 20, paddingBottom: 8 }}>
         <div className="widget-6x2" style={{ minHeight: 380 }}>

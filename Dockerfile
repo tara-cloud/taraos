@@ -32,8 +32,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Mount points for host resources; /data is writable for settings.json
-RUN mkdir -p /data /data/files /sys /proc && chown nextjs:nodejs /data
+# Mount points, permissions, and helm for self-update
+RUN mkdir -p /data /data/files /sys /proc && chown nextjs:nodejs /data && \
+    apk add --no-cache curl bash && \
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash && \
+    apk del curl bash
 
 USER nextjs
 
