@@ -26,12 +26,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function StorePage() {
   const router = useRouter();
-  const [tab, setTab]             = useState<"catalog" | "updates">("catalog");
-  const [catalog, setCatalog]     = useState<CatalogEntry[]>([]);
-  const [installed, setInstalled] = useState<InstalledAppStatus[]>([]);
-  const [actions, setActions]     = useState<Record<string, ActionState>>({});
-  const [messages, setMessages]   = useState<Record<string, string>>({});
-  const [loading, setLoading]     = useState(true);
+  const [tab, setTab]                     = useState<"catalog" | "updates">("catalog");
+  const [catalog, setCatalog]             = useState<CatalogEntry[]>([]);
+  const [installed, setInstalled]         = useState<InstalledAppStatus[]>([]);
+  const [actions, setActions]             = useState<Record<string, ActionState>>({});
+  const [messages, setMessages]           = useState<Record<string, string>>({});
+  const [loading, setLoading]             = useState(true);
+  const [search, setSearch]               = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
 
   useEffect(() => {
     loadAll();
@@ -112,9 +114,13 @@ export default function StorePage() {
   }
 
   const updatesAvailable = installed.filter((a) => a.hasUpdate);
-  const displayApps = tab === "updates"
+  const displayApps = (tab === "updates"
     ? catalog.filter((a) => updatesAvailable.some((u) => u.id === a.id))
-    : catalog;
+    : catalog
+  ).filter((a) =>
+    (activeCategory === "all" || a.category === activeCategory) &&
+    (search === "" || a.name.toLowerCase().includes(search.toLowerCase()) || a.description.toLowerCase().includes(search.toLowerCase()))
+  );
 
   function getInstalledStatus(id: string): InstalledAppStatus | undefined {
     return installed.find((a) => a.id === id);
@@ -125,7 +131,7 @@ export default function StorePage() {
     const action = actions[app.id];
     const msg    = messages[app.id];
     const hasUpdate = status?.hasUpdate ?? false;
-    const hostname = typeof globalThis.window !== "undefined" ? globalThis.location.hostname : "192.168.0.107";
+    const hostname = globalThis.window === undefined ? "pi" : globalThis.location.hostname;
 
     return (
       <div className="glass-widget" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -229,8 +235,8 @@ export default function StorePage() {
         paddingRight: "max(24px, env(safe-area-inset-right))",
         gap: 12,
       }}>
-        <button type="button" onClick={() => router.push("/")} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "5px 14px", color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer" }}>
-          ← Back
+        <button type="button" onClick={() => router.push("/")} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "5px 14px", color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+          🏠 Home
         </button>
         <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>App Store</span>
         <div style={{ flex: 1 }} />
@@ -258,10 +264,50 @@ export default function StorePage() {
         ))}
       </div>
 
+      {/* Search + Category filters */}
+      {tab === "catalog" && (
+        <div style={{ padding: "12px 24px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Search bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, padding: "8px 14px" }}>
+            <span style={{ fontSize: 15, opacity: 0.45 }}>🔍</span>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search apps…"
+              style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 14, color: "rgba(255,255,255,0.85)" }}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.35)", fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+            )}
+          </div>
+          {/* Category chips */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(["all", "media", "productivity", "utilities", "monitoring", "storage"] as const).map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <button key={cat} type="button" onClick={() => setActiveCategory(cat)} style={{
+                  padding: "5px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500,
+                  background: isActive ? "rgba(0,113,227,0.35)" : "rgba(255,255,255,0.07)",
+                  color: isActive ? "#fff" : "rgba(255,255,255,0.55)",
+                  transition: "all 0.12s",
+                }}>
+                  {cat === "all" ? "All" : CATEGORY_LABELS[cat]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* App grid */}
       <div style={{ padding: "16px 24px 48px" }}>
         {loading && (
           <div style={{ color: "rgba(255,255,255,0.38)", fontSize: 14, textAlign: "center", paddingTop: 40 }}>Loading…</div>
+        )}
+        {!loading && tab === "catalog" && displayApps.length === 0 && (
+          <div style={{ color: "rgba(255,255,255,0.38)", fontSize: 14, textAlign: "center", paddingTop: 40 }}>
+            No apps match your search
+          </div>
         )}
         {!loading && tab === "updates" && updatesAvailable.length === 0 && (
           <div style={{ color: "rgba(255,255,255,0.38)", fontSize: 14, textAlign: "center", paddingTop: 40 }}>
@@ -274,7 +320,7 @@ export default function StorePage() {
             {displayApps.map((app) => (
               <AppCard key={app.id} app={app} />
             ))}
-            {tab === "catalog" && CATALOG.filter((a) => !catalog.find((c) => c.id === a.id)).map((app) => (
+            {tab === "catalog" && CATALOG.filter((a) => !catalog.some((c) => c.id === a.id)).map((app) => (
               <AppCard key={app.id} app={{ ...app, installed: false }} />
             ))}
           </div>
