@@ -2,8 +2,8 @@ apiVersion: v2
 name: taraos
 description: Personal Pi Dashboard — clock, weather, app launcher
 type: application
-version: 2.4.3
-appVersion: "2.4.3"
+version: 2.4.4
+appVersion: "2.4.4"
 keywords:
   - dashboard
   - raspberry-pi

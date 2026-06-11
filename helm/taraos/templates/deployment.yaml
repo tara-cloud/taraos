@@ -22,6 +22,9 @@ spec:
         - name: taraos
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           ports:
             - containerPort: 3000
               hostPort: {{ .Values.service.nodePort }}
