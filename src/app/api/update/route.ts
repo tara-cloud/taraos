@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 const execAsync = promisify(exec);
 
@@ -18,8 +20,8 @@ export interface UpdateInfo {
 
 function currentVersion(): string {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return (require("../../../../../package.json") as { version: string }).version;
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string };
+    return pkg.version;
   } catch {
     return process.env.npm_package_version ?? "0.0.0";
   }
