@@ -34,9 +34,10 @@ COPY --from=builder /app/.next/static ./.next/static
 
 # Mount points, permissions, and helm for self-update
 RUN mkdir -p /data /data/files /sys /proc && chown nextjs:nodejs /data && \
-    apk add --no-cache curl bash && \
-    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash && \
-    apk del curl bash
+    wget -qO /tmp/helm.tar.gz https://get.helm.sh/helm-v3.17.3-linux-arm64.tar.gz && \
+    tar -xzf /tmp/helm.tar.gz -C /tmp && \
+    mv /tmp/linux-arm64/helm /usr/local/bin/helm && \
+    rm -rf /tmp/helm.tar.gz /tmp/linux-arm64
 
 USER nextjs
 
