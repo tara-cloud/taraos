@@ -2,7 +2,7 @@
   "theme": "bg-midnight",
   "bgType": "Gradient",
   "bgImage": "",
-  "clockFormat": "24",
+  "clockFormat": "12",
   "clockFont": "system",
   "clockSize": 60,
   "dateFormat": "full",

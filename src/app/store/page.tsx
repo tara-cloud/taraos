@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CATALOG, type CatalogApp } from "@/lib/catalog";
 import { getCachedSettings, loadSettings } from "@/lib/settings";
+import { frameUrl } from "@/lib/frame";
 import type { InstalledAppStatus } from "@/lib/installedApps";
 
 type CatalogEntry = CatalogApp & { installed: boolean };
@@ -192,10 +194,10 @@ export default function StorePage() {
         {/* Actions */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {app.manualInstall && !app.installed && (
-            <a href="https://immich.app/docs/install/docker-compose" target="_blank" rel="noopener noreferrer"
+            <Link href={frameUrl("https://immich.app/docs/install/docker-compose", "Immich Install Guide")}
               style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, textDecoration: "none" }}>
               View Install Guide ↗
-            </a>
+            </Link>
           )}
 
           {!app.installed && !app.manualInstall && (
@@ -207,10 +209,10 @@ export default function StorePage() {
 
           {app.installed && (
             <>
-              <a href={`http://${hostname}:${app.defaultPort}`} target="_blank" rel="noopener noreferrer"
+              <Link href={frameUrl(`http://${hostname}:${app.defaultPort}`, app.name)}
                 style={{ fontSize: 13, fontWeight: 500, padding: "6px 14px", background: "rgba(52,199,89,0.20)", border: "1px solid rgba(52,199,89,0.40)", borderRadius: 8, color: "#34c759", textDecoration: "none" }}>
                 Open
-              </a>
+              </Link>
               {hasUpdate && (
                 <button type="button" onClick={() => update(app.id)} disabled={!!action}
                   style={{ fontSize: 13, fontWeight: 600, padding: "6px 14px", background: "rgba(255,149,0,0.25)", border: "1px solid rgba(255,149,0,0.50)", borderRadius: 8, color: "#ff9500", cursor: action ? "default" : "pointer" }}>

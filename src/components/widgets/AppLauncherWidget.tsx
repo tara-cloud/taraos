@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { getCatalogApp } from "@/lib/catalog";
+import { frameUrl } from "@/lib/frame";
 import type { InstalledAppStatus } from "@/lib/installedApps";
 
 interface AppEntry {
@@ -126,7 +128,7 @@ export default function AppLauncherWidget() {
               {filtered.map((app, i) => {
                 const linkProps = app.internal
                   ? { href: app.url }
-                  : { href: app.url, target: "_blank" as const, rel: "noopener noreferrer" };
+                  : { href: frameUrl(app.url, app.name) };
                 return (
                   <Link
                     key={app.name}

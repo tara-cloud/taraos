@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { loadSettings, saveSettings } from "@/lib/settings";
+import { frameUrl } from "@/lib/frame";
 import type { WeatherLocation } from "@/lib/locations";
 import type { UpdateInfo } from "@/app/api/update/route";
 
@@ -248,10 +250,10 @@ export default function SettingsPage() {
                           v{updateInfo.latest} available
                         </div>
                         {updateInfo.releaseUrl && (
-                          <a href={updateInfo.releaseUrl} target="_blank" rel="noopener noreferrer"
+                          <Link href={frameUrl(updateInfo.releaseUrl, `TaraOS v${updateInfo.latest} Release Notes`)}
                             style={{ fontSize: 12, color: "rgba(0,113,227,0.85)", textDecoration: "none", marginTop: 2, display: "block" }}>
                             View release notes ↗
-                          </a>
+                          </Link>
                         )}
                       </div>
                       <button

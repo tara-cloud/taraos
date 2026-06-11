@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { frameUrl } from "@/lib/frame";
 import type { UpdateInfo } from "@/app/api/update/route";
 
 const DISMISS_KEY = "taraos-update-dismissed";
@@ -108,10 +110,8 @@ export default function UpdateBanner() {
       {/* Actions */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
         {info.releaseUrl && (
-          <a
-            href={info.releaseUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href={frameUrl(info.releaseUrl, `TaraOS v${info.latest} Release Notes`)}
             style={{
               fontSize: 13, color: "rgba(255,255,255,0.60)",
               textDecoration: "none", padding: "5px 12px",
@@ -120,7 +120,7 @@ export default function UpdateBanner() {
             }}
           >
             Release Notes
-          </a>
+          </Link>
         )}
         <button
           type="button"
