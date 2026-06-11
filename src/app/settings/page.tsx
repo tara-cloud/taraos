@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadSettings, saveSettings } from "@/lib/settings";
 import type { WeatherLocation } from "@/lib/locations";
+import type { UpdateInfo } from "@/app/api/update/route";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -18,9 +19,21 @@ const BG_TYPES = ["Gradient", "Solid", "Image"];
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-type PageKey = "display.theme" | "display.background" | "clock.format" | "location.locations";
+type PageKey =
+  | "general.update"
+  | "display.theme"
+  | "display.background"
+  | "clock.format"
+  | "location.locations";
 
 const SIDEBAR = [
+  {
+    key: "general",
+    label: "General",
+    items: [
+      { key: "general.update" as PageKey, label: "Software Update" },
+    ],
+  },
   {
     key: "display",
     label: "Display",
@@ -71,17 +84,16 @@ function SectionTitle({ children, mt }: Readonly<{ children: React.ReactNode; mt
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [active, setActive]     = useState<PageKey>("display.theme");
-  const [theme, setTheme]       = useState("bg-nebula");
-  const [bgType, setBgType]     = useState("Gradient");
-  const [bgImage, setBgImage]   = useState("");
-  const [saved, setSaved]       = useState(false);
+  const [active, setActive]   = useState<PageKey>("general.update");
+  const [theme, setTheme]     = useState("bg-nebula");
+  const [bgType, setBgType]   = useState("Gradient");
+  const [bgImage, setBgImage] = useState("");
 
   // Clock settings
-  const [clockFormat, setClockFormat]   = useState<"12" | "24">("24");
-  const [clockFont, setClockFont]       = useState("system");
+  const [clockFormat, setClockFormat]     = useState<"12" | "24">("24");
+  const [clockFont, setClockFont]         = useState("system");
   const [clockFontSize, setClockFontSize] = useState(60);
-  const [dateFormat, setDateFormat]     = useState("full");
+  const [dateFormat, setDateFormat]       = useState("full");
 
   // Locations state
   const [locations, setLocations] = useState<WeatherLocation[]>([]);
@@ -89,6 +101,13 @@ export default function SettingsPage() {
   const [newLat, setNewLat]       = useState("");
   const [newLon, setNewLon]       = useState("");
   const [addError, setAddError]   = useState("");
+
+  // Update check state
+  const [updateInfo, setUpdateInfo]       = useState<UpdateInfo | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateError, setUpdateError]     = useState("");
+  const [updating, setUpdating]           = useState(false);
+  const [updateStatus, setUpdateStatus]   = useState("");
 
   useEffect(() => {
     loadSettings().then((s) => {
@@ -104,17 +123,64 @@ export default function SettingsPage() {
     });
   }, []);
 
-  async function saveClock() {
-    await saveSettings({ clockFormat, clockFont, clockSize: clockFontSize, dateFormat });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  async function checkUpdate() {
+    setUpdateChecking(true);
+    setUpdateError("");
+    setUpdateInfo(null);
+    try {
+      const res = await fetch("/api/update");
+      const data: UpdateInfo = await res.json();
+      setUpdateInfo(data);
+    } catch {
+      setUpdateError("Failed to reach GitHub. Check network.");
+    } finally {
+      setUpdateChecking(false);
+    }
   }
 
-  async function saveDisplay() {
-    await saveSettings({ theme, bgType, bgImage });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  async function doUpdate() {
+    if (!updateInfo) return;
+    setUpdating(true);
+    setUpdateStatus("Sending upgrade command…");
+    try {
+      const res = await fetch("/api/update", { method: "POST" });
+      const data = await res.json() as { ok: boolean; message: string };
+      if (!data.ok) {
+        setUpdateStatus(`Failed: ${data.message}`);
+        setUpdating(false);
+        return;
+      }
+      setUpdateStatus("Upgrade initiated — waiting for pod to restart…");
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const r = await fetch("/api/update");
+          const d: UpdateInfo = await r.json();
+          if (!d.hasUpdate) {
+            clearInterval(poll);
+            setUpdateStatus("Update complete! Reloading…");
+            setTimeout(() => globalThis.location.reload(), 1500);
+          } else if (attempts > 24) {
+            clearInterval(poll);
+            setUpdateStatus("Timed out — check Pi manually.");
+            setUpdating(false);
+          }
+        } catch { /* pod restarting */ }
+      }, 5000);
+    } catch {
+      setUpdateStatus("Network error.");
+      setUpdating(false);
+    }
   }
+
+  function setThemeAndSave(v: string)          { setTheme(v);   saveSettings({ theme: v }); }
+  function setBgTypeAndSave(v: string)         { setBgType(v);  saveSettings({ bgType: v, bgImage }); }
+  function setBgImageAndSave(v: string)        { setBgImage(v); }
+  function saveBgImage()                       { saveSettings({ bgType, bgImage }); }
+  function setClockFormatAndSave(v: "12"|"24") { setClockFormat(v); saveSettings({ clockFormat: v }); }
+  function setClockFontAndSave(v: string)      { setClockFont(v);   saveSettings({ clockFont: v }); }
+  function setDateFormatAndSave(v: string)     { setDateFormat(v);  saveSettings({ dateFormat: v }); }
 
   async function addLocation() {
     const lat = Number.parseFloat(newLat);
@@ -140,6 +206,95 @@ export default function SettingsPage() {
   function renderDetail() {
     switch (active) {
 
+      case "general.update":
+        return (
+          <>
+            <SectionTitle>Software Update</SectionTitle>
+            <Card>
+              <Row>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }}>Current Version</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.40)", marginTop: 2, fontFamily: "monospace" }}>
+                      {updateInfo ? `v${updateInfo.current}` : "—"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={checkUpdate}
+                    disabled={updateChecking || updating}
+                    style={{
+                      background: "rgba(0,113,227,0.20)", border: "1px solid rgba(0,113,227,0.40)",
+                      borderRadius: 10, padding: "7px 16px", cursor: updateChecking ? "default" : "pointer",
+                      color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 500,
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    {updateChecking
+                      ? <><span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span> Checking…</>
+                      : "Check for Update"
+                    }
+                  </button>
+                </div>
+              </Row>
+
+              {/* Result row */}
+              {updateInfo && (
+                <Row last={!updateInfo.hasUpdate}>
+                  {updateInfo.hasUpdate ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, color: "#34c759", fontWeight: 500 }}>
+                          v{updateInfo.latest} available
+                        </div>
+                        {updateInfo.releaseUrl && (
+                          <a href={updateInfo.releaseUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: "rgba(0,113,227,0.85)", textDecoration: "none", marginTop: 2, display: "block" }}>
+                            View release notes ↗
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={doUpdate}
+                        disabled={updating}
+                        style={{
+                          background: updating ? "rgba(0,113,227,0.12)" : "rgba(0,113,227,0.30)",
+                          border: "1px solid rgba(0,113,227,0.55)",
+                          borderRadius: 10, padding: "7px 16px",
+                          cursor: updating ? "default" : "pointer",
+                          color: "rgba(255,255,255,0.90)", fontSize: 13, fontWeight: 600,
+                          display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+                        }}
+                      >
+                        {updating
+                          ? <><span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span> Updating…</>
+                          : "Update Now"
+                        }
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: "#34c759" }}>✓</span> TaraOS is up to date (v{updateInfo.current})
+                    </div>
+                  )}
+                </Row>
+              )}
+
+              {/* Status message while updating */}
+              {updateStatus && (
+                <Row last>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.50)" }}>{updateStatus}</div>
+                </Row>
+              )}
+            </Card>
+
+            {updateError && (
+              <div style={{ marginTop: 10, fontSize: 13, color: "#ff3b30" }}>{updateError}</div>
+            )}
+          </>
+        );
+
       case "display.theme":
         return (
           <>
@@ -147,7 +302,7 @@ export default function SettingsPage() {
             <Card>
               {THEMES.map((t, i) => (
                 <Row key={t.key} last={i === THEMES.length - 1}>
-                  <button type="button" onClick={() => setTheme(t.key)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
+                  <button type="button" onClick={() => setThemeAndSave(t.key)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
                     <div style={{ display: "flex", gap: 3 }}>
                       {t.colors.map((c, ci) => (
                         <div key={`${t.key}-${ci}`} style={{ width: 10, height: 10, borderRadius: "50%", background: c, border: "1px solid rgba(255,255,255,0.2)" }} />
@@ -169,7 +324,7 @@ export default function SettingsPage() {
             <Card>
               {BG_TYPES.map((b, i) => (
                 <Row key={b} last={i === BG_TYPES.length - 1}>
-                  <button type="button" onClick={() => setBgType(b)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
+                  <button type="button" onClick={() => setBgTypeAndSave(b)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
                     <span style={{ flex: 1, fontSize: 14, color: "rgba(255,255,255,0.82)", textAlign: "left" }}>{b}</span>
                     {bgType === b && <span style={{ color: "#0071e3", fontSize: 16 }}>✓</span>}
                   </button>
@@ -181,7 +336,7 @@ export default function SettingsPage() {
                 <SectionTitle mt={20}>Image URL</SectionTitle>
                 <Card>
                   <Row last>
-                    <input value={bgImage} onChange={(e) => setBgImage(e.target.value)} placeholder="https://…" style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 14, color: "rgba(255,255,255,0.80)" }} />
+                    <input value={bgImage} onChange={(e) => setBgImageAndSave(e.target.value)} onBlur={saveBgImage} placeholder="https://…" style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 14, color: "rgba(255,255,255,0.80)" }} />
                   </Row>
                 </Card>
               </>
@@ -201,19 +356,13 @@ export default function SettingsPage() {
                       <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }}>{loc.label}</div>
                       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2, fontFamily: "monospace" }}>{loc.lat}, {loc.lon}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeLocation(loc.id)}
-                      style={{ background: "rgba(255,59,48,0.15)", border: "1px solid rgba(255,59,48,0.30)", borderRadius: 8, color: "#ff3b30", fontSize: 12, padding: "4px 10px", cursor: "pointer" }}
-                    >
+                    <button type="button" onClick={() => removeLocation(loc.id)} style={{ background: "rgba(255,59,48,0.15)", border: "1px solid rgba(255,59,48,0.30)", borderRadius: 8, color: "#ff3b30", fontSize: 12, padding: "4px 10px", cursor: "pointer" }}>
                       Remove
                     </button>
                   </div>
                 </Row>
               ))}
-              {locations.length === 0 && (
-                <Row last><span style={{ fontSize: 13, color: "rgba(255,255,255,0.30)" }}>No locations added</span></Row>
-              )}
+              {locations.length === 0 && <Row last><span style={{ fontSize: 13, color: "rgba(255,255,255,0.30)" }}>No locations added</span></Row>}
             </Card>
 
             <SectionTitle mt={24}>Add New Location</SectionTitle>
@@ -232,11 +381,7 @@ export default function SettingsPage() {
               </Row>
             </Card>
             {addError && <div style={{ fontSize: 12, color: "#ff3b30", marginTop: 8 }}>{addError}</div>}
-            <button
-              type="button"
-              onClick={addLocation}
-              style={{ marginTop: 12, width: "100%", background: "rgba(0,113,227,0.20)", border: "1px solid rgba(0,113,227,0.40)", borderRadius: 12, padding: "11px", cursor: "pointer", color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 500 }}
-            >
+            <button type="button" onClick={addLocation} style={{ marginTop: 12, width: "100%", background: "rgba(0,113,227,0.20)", border: "1px solid rgba(0,113,227,0.40)", borderRadius: 12, padding: "11px", cursor: "pointer", color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 500 }}>
               + Add Location
             </button>
           </>
@@ -244,27 +389,19 @@ export default function SettingsPage() {
 
       case "clock.format": {
         const FONTS = [
-          { key: "system",   label: "System",   sample: "-apple-system, sans-serif" },
-          { key: "mono",     label: "Monospace", sample: "ui-monospace, monospace" },
-          { key: "serif",    label: "Serif",     sample: "Georgia, serif" },
-          { key: "rounded",  label: "Rounded",   sample: "'Trebuchet MS', sans-serif" },
+          { key: "system",  label: "System",    sample: "-apple-system, sans-serif" },
+          { key: "mono",    label: "Monospace",  sample: "ui-monospace, monospace" },
+          { key: "serif",   label: "Serif",      sample: "Georgia, serif" },
+          { key: "rounded", label: "Rounded",    sample: "'Trebuchet MS', sans-serif" },
         ];
         const fontFamily = FONTS.find((f) => f.key === clockFont)?.sample ?? "sans-serif";
         return (
           <>
-            {/* Live preview */}
             <SectionTitle>Preview</SectionTitle>
             <Card>
               <Row last>
                 <div style={{ textAlign: "center", padding: "12px 0" }}>
-                  <div style={{
-                    fontSize: clockFontSize,
-                    fontWeight: 200,
-                    fontFamily,
-                    color: "rgba(255,255,255,0.92)",
-                    lineHeight: 1,
-                    letterSpacing: "-2px",
-                  }}>
+                  <div style={{ fontSize: clockFontSize, fontWeight: 200, fontFamily, color: "rgba(255,255,255,0.92)", lineHeight: 1, letterSpacing: "-2px" }}>
                     {clockFormat === "12"
                       ? new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
                       : `${String(new Date().getHours()).padStart(2,"0")}:${String(new Date().getMinutes()).padStart(2,"0")}`}
@@ -277,7 +414,7 @@ export default function SettingsPage() {
             <Card>
               {(["24", "12"] as const).map((f, i) => (
                 <Row key={f} last={i === 1}>
-                  <button type="button" onClick={() => setClockFormat(f)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
+                  <button type="button" onClick={() => setClockFormatAndSave(f)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
                     <span style={{ flex: 1, fontSize: 14, color: "rgba(255,255,255,0.82)", textAlign: "left" }}>{f === "24" ? "24-hour (14:30)" : "12-hour (2:30 PM)"}</span>
                     {clockFormat === f && <span style={{ color: "#0071e3", fontSize: 16 }}>✓</span>}
                   </button>
@@ -289,7 +426,7 @@ export default function SettingsPage() {
             <Card>
               {FONTS.map((f, i) => (
                 <Row key={f.key} last={i === FONTS.length - 1}>
-                  <button type="button" onClick={() => setClockFont(f.key)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
+                  <button type="button" onClick={() => setClockFontAndSave(f.key)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
                     <span style={{ flex: 1, fontSize: 14, color: "rgba(255,255,255,0.82)", textAlign: "left", fontFamily: f.sample }}>{f.label}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: f.sample, marginRight: 8 }}>12:00</span>
                     {clockFont === f.key && <span style={{ color: "#0071e3", fontSize: 16 }}>✓</span>}
@@ -302,12 +439,7 @@ export default function SettingsPage() {
             <Card>
               <Row last>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <input
-                    type="range" min={32} max={96} step={4}
-                    value={clockFontSize}
-                    onChange={(e) => setClockFontSize(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: "#0071e3" }}
-                  />
+                  <input type="range" min={32} max={96} step={4} value={clockFontSize} onChange={(e) => setClockFontSize(Number(e.target.value))} onMouseUp={(e) => saveSettings({ clockSize: Number((e.target as HTMLInputElement).value) })} onTouchEnd={(e) => saveSettings({ clockSize: Number((e.target as HTMLInputElement).value) })} style={{ flex: 1, accentColor: "#0071e3" }} />
                   <span style={{ fontSize: 14, color: "rgba(255,255,255,0.70)", width: 36, textAlign: "right" }}>{clockFontSize}px</span>
                 </div>
               </Row>
@@ -316,15 +448,15 @@ export default function SettingsPage() {
             <SectionTitle mt={20}>Date Format</SectionTitle>
             <Card>
               {([
-                { key: "full",     label: "Full",         sample: "Wed, June 11 2026" },
-                { key: "no-year",  label: "No year",      sample: "Wed, June 11" },
-                { key: "short",    label: "Short",        sample: "Jun 11" },
-                { key: "numeric",  label: "Numeric",      sample: "06/11/2026" },
-                { key: "iso",      label: "ISO",          sample: "2026-06-11" },
-                { key: "day-only", label: "Day only",     sample: "Wednesday" },
+                { key: "full",     label: "Full",     sample: "Wed, June 11 2026" },
+                { key: "no-year",  label: "No year",  sample: "Wed, June 11" },
+                { key: "short",    label: "Short",    sample: "Jun 11" },
+                { key: "numeric",  label: "Numeric",  sample: "06/11/2026" },
+                { key: "iso",      label: "ISO",      sample: "2026-06-11" },
+                { key: "day-only", label: "Day only", sample: "Wednesday" },
               ] as const).map((f, i, arr) => (
                 <Row key={f.key} last={i === arr.length - 1}>
-                  <button type="button" onClick={() => setDateFormat(f.key)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
+                  <button type="button" onClick={() => setDateFormatAndSave(f.key)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: 0 }}>
                     <span style={{ flex: 1, fontSize: 14, color: "rgba(255,255,255,0.82)", textAlign: "left" }}>{f.label}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", marginRight: 8 }}>{f.sample}</span>
                     {dateFormat === f.key && <span style={{ color: "#0071e3", fontSize: 16 }}>✓</span>}
@@ -337,8 +469,6 @@ export default function SettingsPage() {
       }
     }
   }
-
-  const isLocationPage = active === "location.locations";
 
   return (
     <div className="bg-nebula" style={{ minHeight: "100vh" }}>
@@ -397,27 +527,14 @@ export default function SettingsPage() {
         {/* Detail pane */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {renderDetail()}
-          {!isLocationPage && (
-            <button
-              type="button"
-              onClick={active === "clock.format" ? saveClock : saveDisplay}
-              style={{
-                marginTop: 24, width: "100%",
-                background: saved ? "rgba(52,199,89,0.20)" : "rgba(0,113,227,0.25)",
-                border: `1px solid ${saved ? "rgba(52,199,89,0.45)" : "rgba(0,113,227,0.45)"}`,
-                borderRadius: 14, padding: "13px", cursor: "pointer",
-                color: saved ? "#34c759" : "rgba(255,255,255,0.88)",
-                fontSize: 14, fontWeight: 600, transition: "all 0.2s",
-              }}
-            >
-              {saved ? "✓ Saved" : "Save Settings"}
-            </button>
-          )}
         </div>
 
       </div>
 
-      <style>{`input::placeholder { color: rgba(255,255,255,0.22); }`}</style>
+      <style>{`
+        input::placeholder { color: rgba(255,255,255,0.22); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
