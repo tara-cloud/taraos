@@ -24,14 +24,23 @@ export async function loadSettings(): Promise<AppSettings> {
 }
 
 export async function saveSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  // Optimistically merge patch into localStorage cache so navigation back
+  // to dashboard reflects the change immediately (before server responds)
+  const current = getCachedSettings();
+  if (current) {
+    const optimistic = { ...current, ...patch };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(optimistic));
+    globalThis.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+  }
+
   const res = await fetch("/api/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
   const data: AppSettings = await res.json();
+  // Confirm with server-returned data
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  // Notify other tabs/components on same device
   globalThis.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
   return data;
 }

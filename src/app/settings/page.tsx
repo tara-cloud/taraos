@@ -484,7 +484,7 @@ export default function SettingsPage() {
         gap: 12,
       }}>
         <button type="button" onClick={() => router.push("/")} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "5px 14px", color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-          ← Back
+          🏠 Home
         </button>
         <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>Settings</span>
       </div>

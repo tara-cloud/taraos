@@ -1,0 +1,30 @@
+{
+  "theme": "bg-midnight",
+  "bgType": "Gradient",
+  "bgImage": "",
+  "clockFormat": "24",
+  "clockFont": "system",
+  "clockSize": 60,
+  "dateFormat": "full",
+  "locations": [
+    {
+      "id": "kerala",
+      "label": "Kerala, India",
+      "lat": 10.8505,
+      "lon": 76.2711
+    },
+    {
+      "id": "mumbai",
+      "label": "Mumbai, India",
+      "lat": 19.076,
+      "lon": 72.8777
+    },
+    {
+      "id": "bangalore",
+      "label": "Bangalore, India",
+      "lat": 12.9716,
+      "lon": 77.5946
+    }
+  ],
+  "activeLocationId": "kerala"
+}
