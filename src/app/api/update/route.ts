@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import { readFileSync } from "fs";
-import { join } from "path";
-const execAsync = promisify(exec);
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // ── In-memory cache (30 min) ─────────────────────────────────────────────────
 let cache: { data: UpdateInfo; ts: number } | null = null;
@@ -80,13 +77,8 @@ export async function GET(req: Request) {
   }
 }
 
-// ── POST — trigger helm upgrade ───────────────────────────────────────────────
+// ── POST — trigger upgrade via k8s API (no helm CLI needed) ──────────────────
 export async function POST() {
-  const helmPath   = process.env.HELM_PATH   ?? "/usr/local/bin/helm";
-  const kubeconfig = process.env.KUBECONFIG  ?? "/etc/rancher/k3s/k3s.yaml";
-  const chartPath  = process.env.HELM_CHART  ?? "/home/pi/helm-charts/taraos";
-
-  // Get latest version first (bust cache so we always get fresh data)
   const checkRes = await GET(new Request("http://localhost/api/update?bust=1"));
   const info = await checkRes.json() as UpdateInfo;
 
@@ -94,38 +86,48 @@ export async function POST() {
     return NextResponse.json({ ok: false, message: "Already up to date" });
   }
 
-  // The kubeconfig has server: https://127.0.0.1:6443 which doesn't work from inside the pod.
-  // Use the in-cluster service account token if available, otherwise rewrite the server address.
   let token = "";
   try { token = readFileSync("/var/run/secrets/kubernetes.io/serviceaccount/token", "utf8").trim(); } catch { /* not in cluster */ }
 
-  // Use KUBERNETES_SERVICE_HOST (IP injected by k8s) to avoid DNS dependency
   const k8sHost = process.env.KUBERNETES_SERVICE_HOST ?? "kubernetes.default.svc";
   const k8sPort = process.env.KUBERNETES_SERVICE_PORT_HTTPS ?? "443";
+  const apiserver = `https://${k8sHost}:${k8sPort}`;
 
-  const cmd = token
-    ? [
-        helmPath, "upgrade", "taraos", chartPath,
-        "--kube-apiserver", `https://${k8sHost}:${k8sPort}`,
-        "--kube-ca-file", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-        "--kube-token", token,
-        "--namespace", "taraos",
-        "--set", `image.tag=${info.latest}`,
-      ].join(" ")
-    : [
-        helmPath, "upgrade", "taraos", chartPath,
-        "--kubeconfig", kubeconfig,
-        "--namespace", "taraos",
-        "--set", `image.tag=${info.latest}`,
-      ].join(" ");
+  if (!token) {
+    return NextResponse.json({ ok: false, message: "No in-cluster service account token — cannot update from outside k8s" }, { status: 500 });
+  }
 
   try {
-    await execAsync(cmd, { timeout: 120_000 });
-    // Invalidate cache so next GET reflects new version
-    cache = null;
+    // Patch the deployment image tag via k8s API (strategic merge patch)
+    const patchUrl = `${apiserver}/apis/apps/v1/namespaces/taraos/deployments/taraos`;
+    const patch = {
+      spec: {
+        template: {
+          spec: {
+            containers: [{ name: "taraos", image: `pmananthu/taraos:${info.latest}` }],
+          },
+        },
+      },
+    };
+
+    const res = await fetch(patchUrl, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/strategic-merge-patch+json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(patch),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      return NextResponse.json({ ok: false, message: `k8s API error: ${res.status} ${body}` }, { status: 500 });
+    }
+
+    cache = null; // bust cache
     return NextResponse.json({ ok: true, message: `Upgrading to v${info.latest}` });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, message: msg }, { status: 500 });
+    return NextResponse.json({ ok: false, message: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }
 }
