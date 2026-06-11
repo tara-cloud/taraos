@@ -71,7 +71,7 @@ export const CATALOG: CatalogApp[] = [
       chart: "./filebrowser",
       namespace: "filebrowser",
       releaseName: "filebrowser",
-      servicePort: 8081,
+      servicePort: 80,
       nodePort: 30081,
     },
   },
