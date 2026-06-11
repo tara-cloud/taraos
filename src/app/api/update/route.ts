@@ -3,7 +3,6 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { readFileSync } from "fs";
 import { join } from "path";
-
 const execAsync = promisify(exec);
 
 // ── In-memory cache (30 min) ─────────────────────────────────────────────────
@@ -95,12 +94,26 @@ export async function POST() {
     return NextResponse.json({ ok: false, message: "Already up to date" });
   }
 
-  const cmd = [
-    helmPath, "upgrade", "taraos", chartPath,
-    "--kubeconfig", kubeconfig,
-    "--namespace", "taraos",
-    "--set", `image.tag=${info.latest}`,
-  ].join(" ");
+  // The kubeconfig has server: https://127.0.0.1:6443 which doesn't work from inside the pod.
+  // Use the in-cluster service account token if available, otherwise rewrite the server address.
+  let token = "";
+  try { token = readFileSync("/var/run/secrets/kubernetes.io/serviceaccount/token", "utf8").trim(); } catch { /* not in cluster */ }
+
+  const cmd = token
+    ? [
+        helmPath, "upgrade", "taraos", chartPath,
+        "--kube-apiserver", "https://kubernetes.default.svc",
+        "--kube-ca-file", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+        "--kube-token", token,
+        "--namespace", "taraos",
+        "--set", `image.tag=${info.latest}`,
+      ].join(" ")
+    : [
+        helmPath, "upgrade", "taraos", chartPath,
+        "--kubeconfig", kubeconfig,
+        "--namespace", "taraos",
+        "--set", `image.tag=${info.latest}`,
+      ].join(" ");
 
   try {
     await execAsync(cmd, { timeout: 120_000 });

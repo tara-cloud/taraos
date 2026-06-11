@@ -17,6 +17,7 @@ spec:
         app: taraos
         version: {{ .Values.image.tag | quote }}
     spec:
+      serviceAccountName: taraos
       dnsPolicy: "None"
       dnsConfig:
         nameservers:
