@@ -28,33 +28,17 @@ spec:
               value: {{ .value | quote }}
             {{- end }}
           {{- end }}
-          {{- if .Values.storage.enabled }}
           volumeMounts:
-            - name: data
-              mountPath: {{ .Values.storage.mountPath }}
-          {{- end }}
-          {{- if .Values.dockerSocket }}
-          volumeMounts:
-            - name: docker-sock
-              mountPath: /var/run/docker.sock
-              readOnly: true
-          {{- end }}
-      {{- if .Values.storage.enabled }}
+            - name: srv
+              mountPath: /srv
+            - name: database
+              mountPath: /database
       volumes:
-        - name: data
-          {{- if .Values.storage.hostPath }}
+        - name: srv
           hostPath:
-            path: {{ .Values.storage.hostPath }}
+            path: /DATA
             type: DirectoryOrCreate
-          {{- else }}
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-data
-          {{- end }}
-      {{- end }}
-      {{- if .Values.dockerSocket }}
-      volumes:
-        - name: docker-sock
+        - name: database
           hostPath:
-            path: /var/run/docker.sock
-            type: Socket
-      {{- end }}
+            path: /DATA/AppData/filebrowser
+            type: DirectoryOrCreate

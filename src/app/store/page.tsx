@@ -193,23 +193,38 @@ export default function StorePage() {
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {app.manualInstall && !app.installed && (
+
+          {/* External Docker app — show Open only, no install/uninstall */}
+          {app.externalDocker && (
+            <>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", padding: "7px 0", display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: status?.running ? "#34c759" : "rgba(255,255,255,0.3)", display: "inline-block", boxShadow: status?.running ? "0 0 6px #34c759" : "none" }} />
+                {status?.running ? "Running via Docker" : "Docker (stopped)"}
+              </span>
+              <Link href={frameUrl(`http://${hostname}:${app.defaultPort}`, app.name)}
+                style={{ fontSize: 13, fontWeight: 500, padding: "6px 14px", background: "rgba(52,199,89,0.20)", border: "1px solid rgba(52,199,89,0.40)", borderRadius: 8, color: "#34c759", textDecoration: "none" }}>
+                Open
+              </Link>
+            </>
+          )}
+
+          {!app.externalDocker && app.manualInstall && !app.installed && (
             <Link href={frameUrl("https://immich.app/docs/install/docker-compose", "Immich Install Guide")}
               style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, textDecoration: "none" }}>
               View Install Guide ↗
             </Link>
           )}
 
-          {!app.installed && !app.manualInstall && (
+          {!app.externalDocker && !app.installed && !app.manualInstall && (
             <button type="button" onClick={() => install(app.id)} disabled={!!action}
               style={{ fontSize: 13, fontWeight: 600, padding: "6px 16px", background: "rgba(0,113,227,0.30)", border: "1px solid rgba(0,113,227,0.55)", borderRadius: 8, color: "rgba(255,255,255,0.90)", cursor: action ? "default" : "pointer" }}>
               {action === "installing" ? "⟳ Installing…" : "Install"}
             </button>
           )}
 
-          {app.installed && (
+          {!app.externalDocker && app.installed && (
             <>
-              <Link href={frameUrl(`http://${hostname}:${app.defaultPort}`, app.name)}
+              <Link href={frameUrl(`http://${hostname}:${app.defaultPort ?? app.helmChart?.servicePort ?? 80}`, app.name)}
                 style={{ fontSize: 13, fontWeight: 500, padding: "6px 14px", background: "rgba(52,199,89,0.20)", border: "1px solid rgba(52,199,89,0.40)", borderRadius: 8, color: "#34c759", textDecoration: "none" }}>
                 Open
               </Link>

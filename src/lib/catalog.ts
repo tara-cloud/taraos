@@ -26,6 +26,7 @@ export interface CatalogApp {
   volumes?: string[];
   envVars?: string[];
   manualInstall?: boolean;
+  externalDocker?: boolean; // already running in Docker outside k3s, show status + Open only
 }
 
 export const CATALOG: CatalogApp[] = [
@@ -212,13 +213,13 @@ export const CATALOG: CatalogApp[] = [
     id: "immich",
     name: "Immich",
     icon: "📷",
-    description: "High-performance self-hosted photo and video backup solution.",
+    description: "High-performance self-hosted photo and video backup solution. Running via Docker.",
     category: "media",
     color: "#1971c2",
     dockerImage: "ghcr.io/immich-app/immich-server",
     defaultPort: 2283,
     containerName: "immich_server",
-    manualInstall: true,
+    externalDocker: true,  // already running in Docker, show Open button only
   },
   {
     id: "homeassistant",

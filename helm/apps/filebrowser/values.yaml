@@ -9,4 +9,8 @@ storage:
   hostPath: /DATA
   mountPath: /srv
   size: 1Gi
-env: []
+env:
+  - name: FB_DATABASE
+    value: /database/filebrowser.db
+  - name: FB_ROOT
+    value: /srv

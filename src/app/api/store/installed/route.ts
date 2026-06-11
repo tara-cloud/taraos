@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCatalogApp } from "@/lib/catalog";
+import { CATALOG, getCatalogApp } from "@/lib/catalog";
 import { readInstalled } from "@/lib/installedApps";
 import { execAsync, k8sAuth, helmAuthFlags } from "@/lib/helm";
 import type { InstalledAppStatus } from "@/lib/installedApps";
@@ -72,5 +72,25 @@ export async function GET() {
     })
   );
 
-  return NextResponse.json(results);
+  // Include externalDocker apps automatically (they run in Docker outside k3s)
+  const externalApps = CATALOG.filter((a) => a.externalDocker);
+  const externalResults: InstalledAppStatus[] = await Promise.all(
+    externalApps.map(async (app) => {
+      const { running, imageTag } = await dockerAppStatus(app.containerName ?? "");
+      return {
+        id: app.id,
+        installedAt: "",
+        installedTag: imageTag,
+        containerName: app.containerName ?? "",
+        port: app.defaultPort ?? 0,
+        installMethod: "docker" as const,
+        running,
+        currentImageTag: imageTag,
+        latestTag: imageTag,
+        hasUpdate: false,
+      };
+    })
+  );
+
+  return NextResponse.json([...results, ...externalResults]);
 }
