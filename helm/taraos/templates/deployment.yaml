@@ -71,7 +71,7 @@ spec:
             {{- if .Values.dockerSocket.enabled }}
             - name: docker-sock
               mountPath: /var/run/docker.sock
-              readOnly: true
+              readOnly: false
             {{- end }}
             {{- if .Values.selfUpdate.enabled }}
             - name: kubeconfig
