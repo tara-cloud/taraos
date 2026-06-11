@@ -1,0 +1,19 @@
+services:
+  taraos:
+    image: pmananthu/taraos:${APP_VERSION:-1.0.0}
+    container_name: taraos
+    ports:
+      - "${APP_PORT:-3003}:3000"
+    volumes:
+      - /DATA/AppData:/data/files:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /proc:/proc:ro
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    labels:
+      - casaos.name=TaraOS
+      - casaos.icon=🪐
+      - casaos.description=Personal Pi Dashboard
+      - casaos.port=3003

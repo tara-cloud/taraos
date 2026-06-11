@@ -1,0 +1,9 @@
+services:
+  taraos:
+    build: .
+    ports:
+      - "3003:3000"
+    volumes:
+      - ./dev-data:/data/files
+    environment:
+      - NODE_ENV=development

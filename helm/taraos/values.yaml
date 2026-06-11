@@ -1,0 +1,38 @@
+# TaraOS Helm Chart — default values
+# Override with: helm install taraos ./helm/taraos -f my-values.yaml
+
+image:
+  repository: pmananthu/taraos
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 3000
+  nodePort: 30303   # access at http://<NODE_IP>:30303
+
+# Traefik IngressRoute (k3s default ingress controller)
+ingress:
+  enabled: false
+  host: "taraos.local"   # DNS name pointing to your k3s node
+
+# Mount /DATA/AppData from the host into the container (read-only, for file browser)
+# Set to "" to disable
+dataPath: "/DATA/AppData"
+
+# Mount Docker socket so the app can read container statuses
+dockerSocket:
+  enabled: true
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    memory: "256Mi"
+
+probes:
+  initialDelaySeconds: 15
+  periodSeconds: 30

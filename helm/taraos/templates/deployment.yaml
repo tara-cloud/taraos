@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taraos
+  namespace: taraos
+  labels:
+    app: taraos
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: taraos
+  template:
+    metadata:
+      labels:
+        app: taraos
+        version: {{ .Values.image.tag | quote }}
+    spec:
+      containers:
+        - name: taraos
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu | quote }}
+              memory: {{ .Values.resources.requests.memory | quote }}
+            limits:
+              memory: {{ .Values.resources.limits.memory | quote }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            {{- if .Values.dataPath }}
+            - name: data
+              mountPath: /data/files
+              readOnly: true
+            {{- end }}
+            {{- if .Values.dockerSocket.enabled }}
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+              readOnly: true
+            {{- end }}
+            - name: sys
+              mountPath: /sys
+              readOnly: true
+            - name: proc
+              mountPath: /proc
+              readOnly: true
+
+      volumes:
+        {{- if .Values.dataPath }}
+        - name: data
+          hostPath:
+            path: {{ .Values.dataPath }}
+            type: DirectoryOrCreate
+        {{- end }}
+        {{- if .Values.dockerSocket.enabled }}
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        {{- end }}
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory
+        - name: proc
+          hostPath:
+            path: /proc
+            type: Directory

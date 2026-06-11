@@ -1,0 +1,10 @@
+apiVersion: v2
+name: taraos
+description: Personal Pi Dashboard — clock, weather, app launcher
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - dashboard
+  - raspberry-pi
+  - homelab
