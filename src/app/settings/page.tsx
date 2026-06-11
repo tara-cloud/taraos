@@ -471,7 +471,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="bg-nebula" style={{ minHeight: "100vh" }}>
+    <div className={theme} style={{ minHeight: "100vh" }}>
 
       {/* Top bar */}
       <div className="glass-bar" style={{

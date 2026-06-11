@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATALOG, type CatalogApp } from "@/lib/catalog";
+import { getCachedSettings, loadSettings } from "@/lib/settings";
 import type { InstalledAppStatus } from "@/lib/installedApps";
 
 type CatalogEntry = CatalogApp & { installed: boolean };
@@ -26,16 +27,21 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function StorePage() {
   const router = useRouter();
-  const [tab, setTab]                     = useState<"catalog" | "updates">("catalog");
-  const [catalog, setCatalog]             = useState<CatalogEntry[]>([]);
-  const [installed, setInstalled]         = useState<InstalledAppStatus[]>([]);
-  const [actions, setActions]             = useState<Record<string, ActionState>>({});
-  const [messages, setMessages]           = useState<Record<string, string>>({});
-  const [loading, setLoading]             = useState(true);
-  const [search, setSearch]               = useState("");
+  const [theme, setTheme]                   = useState("bg-nebula");
+  const [tab, setTab]                       = useState<"catalog" | "updates">("catalog");
+  const [catalog, setCatalog]               = useState<CatalogEntry[]>([]);
+  const [installed, setInstalled]           = useState<InstalledAppStatus[]>([]);
+  const [actions, setActions]               = useState<Record<string, ActionState>>({});
+  const [messages, setMessages]             = useState<Record<string, string>>({});
+  const [loading, setLoading]               = useState(true);
+  const [search, setSearch]                 = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
   useEffect(() => {
+    const cached = getCachedSettings();
+    if (cached) setTheme(cached.theme);
+    loadSettings().then((s) => { if (s) setTheme(s.theme); });
+
     loadAll();
     const id = setInterval(loadInstalled, 15000);
     return () => clearInterval(id);
@@ -223,7 +229,7 @@ export default function StorePage() {
   }
 
   return (
-    <div className="bg-nebula" style={{ minHeight: "100vh" }}>
+    <div className={theme} style={{ minHeight: "100vh" }}>
 
       {/* Top bar */}
       <div className="glass-bar" style={{
