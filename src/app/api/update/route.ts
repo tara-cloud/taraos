@@ -99,10 +99,14 @@ export async function POST() {
   let token = "";
   try { token = readFileSync("/var/run/secrets/kubernetes.io/serviceaccount/token", "utf8").trim(); } catch { /* not in cluster */ }
 
+  // Use KUBERNETES_SERVICE_HOST (IP injected by k8s) to avoid DNS dependency
+  const k8sHost = process.env.KUBERNETES_SERVICE_HOST ?? "kubernetes.default.svc";
+  const k8sPort = process.env.KUBERNETES_SERVICE_PORT_HTTPS ?? "443";
+
   const cmd = token
     ? [
         helmPath, "upgrade", "taraos", chartPath,
-        "--kube-apiserver", "https://kubernetes.default.svc",
+        "--kube-apiserver", `https://${k8sHost}:${k8sPort}`,
         "--kube-ca-file", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
         "--kube-token", token,
         "--namespace", "taraos",
