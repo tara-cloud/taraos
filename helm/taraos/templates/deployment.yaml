@@ -23,6 +23,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 3000
+              hostPort: {{ .Values.service.nodePort }}
           env:
             - name: NODE_ENV
               value: "production"

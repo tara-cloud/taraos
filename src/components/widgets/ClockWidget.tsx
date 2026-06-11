@@ -45,6 +45,10 @@ const EVENT_COLORS = ["#0071e3", "#34c759", "#ff9500", "#ff3b30", "#af52de", "#5
 export default function ClockWidget() {
   const [now, setNow] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
+  const [clockFormat, setClockFormat]     = useState<"12"|"24">("24");
+  const [clockFont, setClockFont]         = useState("system");
+  const [clockFontSize, setClockFontSize] = useState(60);
+  const [dateFormat, setDateFormat]       = useState("full");
   const [events, setEvents] = useState<EventMap>(() => {
     if (globalThis.window === undefined) return SAMPLE_EVENTS;
     try {
@@ -58,6 +62,21 @@ export default function ClockWidget() {
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    function loadClockSettings() {
+      setClockFormat((localStorage.getItem("taraos-clock-format") ?? "24") as "12" | "24");
+      setClockFont(localStorage.getItem("taraos-clock-font") ?? "system");
+      setClockFontSize(Number(localStorage.getItem("taraos-clock-size") ?? 60));
+      setDateFormat(localStorage.getItem("taraos-date-format") ?? "full");
+    }
+    loadClockSettings();
+    function onStorage(e: StorageEvent) {
+      if (e.key === "taraos-clock-format") loadClockSettings();
+    }
+    globalThis.addEventListener("storage", onStorage);
+    return () => globalThis.removeEventListener("storage", onStorage);
   }, []);
 
   function saveEvents(next: EventMap) {
@@ -84,10 +103,34 @@ export default function ClockWidget() {
     saveEvents(next);
   }
 
-  const h = String(now.getHours()).padStart(2, "0");
+  const FONT_MAP: Record<string, string> = {
+    system:  "-apple-system, BlinkMacSystemFont, sans-serif",
+    mono:    "ui-monospace, monospace",
+    serif:   "Georgia, serif",
+    rounded: "'Trebuchet MS', sans-serif",
+  };
+  const fontFamily = FONT_MAP[clockFont] ?? FONT_MAP.system;
+
+  const hours12 = now.getHours() % 12 || 12;
+  const ampm    = now.getHours() >= 12 ? "PM" : "AM";
+  const h = clockFormat === "12" ? String(hours12).padStart(2, "0") : String(now.getHours()).padStart(2, "0");
   const m = String(now.getMinutes()).padStart(2, "0");
   const s = String(now.getSeconds()).padStart(2, "0");
-  const dateStr = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()} ${now.getFullYear()}`;
+  const dateStr = (() => {
+    const day  = DAYS[now.getDay()];
+    const mon  = MONTHS[now.getMonth()];
+    const monS = mon.slice(0, 3);
+    const d    = now.getDate();
+    const y    = now.getFullYear();
+    switch (dateFormat) {
+      case "short":    return `${monS} ${d}`;
+      case "numeric":  return `${String(now.getMonth() + 1).padStart(2,"0")}/${String(d).padStart(2,"0")}/${y}`;
+      case "iso":      return `${y}-${String(now.getMonth()+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      case "day-only": return day;
+      case "no-year":  return `${day}, ${mon} ${d}`;
+      default:         return `${day}, ${mon} ${d} ${y}`; // full
+    }
+  })();
 
   const cells = buildCalendar(now.getFullYear(), now.getMonth());
   const today = now.getDate();
@@ -111,9 +154,12 @@ export default function ClockWidget() {
     <div className="glass-widget" style={{ padding: "24px", height: "100%", display: "flex", flexDirection: "column", gap: "18px" }}>
       {/* Time */}
       <div>
-        <div style={{ fontSize: 60, fontWeight: 200, letterSpacing: "-2px", lineHeight: 1, color: "rgba(255,255,255,0.95)" }}>
-          {h}<span style={{ opacity: 0.5, animation: "blink 1s step-end infinite" }}>:</span>{m}
-          <span style={{ fontSize: 26, fontWeight: 300, marginLeft: 8, color: "rgba(255,255,255,0.50)" }}>{s}</span>
+        <div style={{ fontSize: clockFontSize, fontWeight: 200, fontFamily, letterSpacing: "-2px", lineHeight: 1, color: "rgba(255,255,255,0.95)", display: "flex", alignItems: "baseline", gap: 4 }}>
+          <span>{h}<span style={{ opacity: 0.5, animation: "blink 1s step-end infinite" }}>:</span>{m}</span>
+          <span style={{ fontSize: clockFontSize * 0.43, fontWeight: 300, color: "rgba(255,255,255,0.50)" }}>{s}</span>
+          {clockFormat === "12" && (
+            <span style={{ fontSize: clockFontSize * 0.3, fontWeight: 400, color: "rgba(255,255,255,0.45)", letterSpacing: "0.02em" }}>{ampm}</span>
+          )}
         </div>
         <div style={{ marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.50)" }}>{dateStr}</div>
       </div>
