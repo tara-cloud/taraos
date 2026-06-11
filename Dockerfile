@@ -32,8 +32,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Mount points for host resources
-RUN mkdir -p /data/files /sys /proc
+# Mount points for host resources; /data is writable for settings.json
+RUN mkdir -p /data /data/files /sys /proc && chown nextjs:nodejs /data
 
 USER nextjs
 

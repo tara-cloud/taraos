@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { loadSettings, getCachedSettings } from "@/lib/settings";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -65,16 +66,23 @@ export default function ClockWidget() {
   }, []);
 
   useEffect(() => {
-    function loadClockSettings() {
-      setClockFormat((localStorage.getItem("taraos-clock-format") ?? "24") as "12" | "24");
-      setClockFont(localStorage.getItem("taraos-clock-font") ?? "system");
-      setClockFontSize(Number(localStorage.getItem("taraos-clock-size") ?? 60));
-      setDateFormat(localStorage.getItem("taraos-date-format") ?? "full");
+    async function loadClockSettings() {
+      const cached = getCachedSettings();
+      if (cached) {
+        setClockFormat(cached.clockFormat);
+        setClockFont(cached.clockFont);
+        setClockFontSize(cached.clockSize);
+        setDateFormat(cached.dateFormat);
+      }
+      const s = await loadSettings();
+      if (!s) return;
+      setClockFormat(s.clockFormat);
+      setClockFont(s.clockFont);
+      setClockFontSize(s.clockSize);
+      setDateFormat(s.dateFormat);
     }
     loadClockSettings();
-    function onStorage(e: StorageEvent) {
-      if (e.key === "taraos-clock-format") loadClockSettings();
-    }
+    function onStorage() { loadClockSettings(); }
     globalThis.addEventListener("storage", onStorage);
     return () => globalThis.removeEventListener("storage", onStorage);
   }, []);

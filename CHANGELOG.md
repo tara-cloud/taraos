@@ -5,9 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0] — 2026-06-11
+
+### Added in 1.2.0
+
+- **Server-side settings** — all settings stored in `/data/settings.json`, shared across devices via `GET/POST /api/settings`
+- **PersistentVolumeClaim** in Helm chart so settings survive pod restarts
+- `DATA_PATH` env var wired into deployment
+
+### Changed in 1.2.0
+
+- All widgets load from server API instead of `localStorage`
+- `localStorage` used only as write-through cache for instant local reads
+- Calendar events remain device-local (personal notes, not shared)
+- Helm: added cpu limits, PVC volume mount
+
+---
+
 ## [1.1.0] — 2026-06-11
 
-### Added
+### Added in 1.1.0
+
 - **Clock settings** — 12/24-hour format, font family (System, Monospace, Serif, Rounded), font size slider (32–96px)
 - **Date format options** — Full, No year, Short, Numeric, ISO, Day only
 - **Settings sidebar** — iOS-style two-column layout with Display, Clock, and Location sections
@@ -15,14 +33,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Background image** — paste any image URL as the dashboard background
 - **PWA support** — installable, offline shell caching via service worker
 
-### Changed
+### Changed in 1.1.0
+
 - App launcher redesigned as bare icon grid (no panel), with `⌘K` search overlay
 - Settings page restructured into grouped sidebar navigation
 - Panels made more transparent (glass effect reduced opacity)
 - Top bar stripped to minimal glass strip (no title/IP)
 - Weather moved to right column, stacked above System widget
 
-### Fixed
+### Fixed in 1.1.0
+
 - Duplicate React key error for Midnight theme color dots
 - k3s NodePort accessibility fixed via `hostPort` binding
 
@@ -30,7 +50,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [1.0.0] — 2026-06-10
 
-### Added
+### Added in 1.0.0
+
 - Initial release — Next.js 15 dashboard deployed on Raspberry Pi 5 via k3s
 - Clock widget with time, date, and mini calendar
 - Calendar event viewer — add/delete events per day, stored in localStorage

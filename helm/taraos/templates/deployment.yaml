@@ -31,11 +31,14 @@ spec:
               value: "3000"
             - name: HOSTNAME
               value: "0.0.0.0"
+            - name: DATA_PATH
+              value: "/data"
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu | quote }}
               memory: {{ .Values.resources.requests.memory | quote }}
             limits:
+              cpu: {{ .Values.resources.limits.cpu | quote }}
               memory: {{ .Values.resources.limits.memory | quote }}
           livenessProbe:
             httpGet:
@@ -50,6 +53,8 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
           volumeMounts:
+            - name: settings-data
+              mountPath: /data
             {{- if .Values.dataPath }}
             - name: data
               mountPath: /data/files
@@ -68,6 +73,9 @@ spec:
               readOnly: true
 
       volumes:
+        - name: settings-data
+          persistentVolumeClaim:
+            claimName: taraos-data
         {{- if .Values.dataPath }}
         - name: data
           hostPath:

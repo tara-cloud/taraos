@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { type WeatherLocation, loadLocations } from "@/lib/locations";
+import { loadSettings, saveSettings, getCachedSettings } from "@/lib/settings";
+import type { WeatherLocation } from "@/lib/locations";
 
 interface WeatherData {
   temp: number;
@@ -44,17 +45,19 @@ export default function WeatherWidget() {
 
   // Load locations on mount and when settings change
   useEffect(() => {
-    const locs = loadLocations();
-    setLocations(locs);
-    const saved = localStorage.getItem("taraos-active-location");
-    setActiveIdx(saved ? Math.max(locs.findIndex((l) => l.id === saved), 0) : 0);
-
-    function onStorage(e: StorageEvent) {
-      if (e.key === "taraos-locations") {
-        const updated = loadLocations();
-        setLocations(updated);
+    async function load() {
+      const cached = getCachedSettings();
+      if (cached) {
+        setLocations(cached.locations);
+        setActiveIdx(Math.max(cached.locations.findIndex((l) => l.id === cached.activeLocationId), 0));
       }
+      const s = await loadSettings();
+      if (!s) return;
+      setLocations(s.locations);
+      setActiveIdx(Math.max(s.locations.findIndex((l) => l.id === s.activeLocationId), 0));
     }
+    load();
+    function onStorage() { load(); }
     globalThis.addEventListener("storage", onStorage);
     return () => globalThis.removeEventListener("storage", onStorage);
   }, []);
@@ -93,7 +96,7 @@ export default function WeatherWidget() {
   function switchLocation(dir: 1 | -1) {
     const next = (activeIdx + dir + locations.length) % locations.length;
     setActiveIdx(next);
-    localStorage.setItem("taraos-active-location", locations[next].id);
+    saveSettings({ activeLocationId: locations[next].id });
   }
 
   const loc = locations[activeIdx] ?? DEFAULT;
@@ -130,7 +133,7 @@ export default function WeatherWidget() {
             <button
               key={locations[i].id}
               type="button"
-              onClick={() => { setActiveIdx(i); localStorage.setItem("taraos-active-location", locations[i].id); }}
+              onClick={() => { setActiveIdx(i); saveSettings({ activeLocationId: locations[i].id }); }}
               style={{
                 width: i === activeIdx ? 16 : 6, height: 6, borderRadius: 3,
                 background: i === activeIdx ? "#0071e3" : "rgba(255,255,255,0.25)",

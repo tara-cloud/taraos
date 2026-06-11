@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { type WeatherLocation, loadLocations, saveLocations } from "@/lib/locations";
+import { loadSettings, saveSettings } from "@/lib/settings";
+import type { WeatherLocation } from "@/lib/locations";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -90,36 +91,32 @@ export default function SettingsPage() {
   const [addError, setAddError]   = useState("");
 
   useEffect(() => {
-    setTheme(localStorage.getItem("taraos-theme") ?? "bg-nebula");
-    setBgType(localStorage.getItem("taraos-bg-type") ?? "Gradient");
-    setBgImage(localStorage.getItem("taraos-bg-image") ?? "");
-    setClockFormat((localStorage.getItem("taraos-clock-format") ?? "24") as "12" | "24");
-    setClockFont(localStorage.getItem("taraos-clock-font") ?? "system");
-    setClockFontSize(Number(localStorage.getItem("taraos-clock-size") ?? 60));
-    setDateFormat(localStorage.getItem("taraos-date-format") ?? "full");
-    setLocations(loadLocations());
+    loadSettings().then((s) => {
+      if (!s) return;
+      setTheme(s.theme);
+      setBgType(s.bgType);
+      setBgImage(s.bgImage);
+      setClockFormat(s.clockFormat);
+      setClockFont(s.clockFont);
+      setClockFontSize(s.clockSize);
+      setDateFormat(s.dateFormat);
+      setLocations(s.locations);
+    });
   }, []);
 
-  function saveClock() {
-    localStorage.setItem("taraos-clock-format", clockFormat);
-    localStorage.setItem("taraos-clock-font", clockFont);
-    localStorage.setItem("taraos-clock-size", String(clockFontSize));
-    localStorage.setItem("taraos-date-format", dateFormat);
-    globalThis.dispatchEvent(new StorageEvent("storage", { key: "taraos-clock-format" }));
+  async function saveClock() {
+    await saveSettings({ clockFormat, clockFont, clockSize: clockFontSize, dateFormat });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
-  function saveDisplay() {
-    localStorage.setItem("taraos-theme", theme);
-    localStorage.setItem("taraos-bg-type", bgType);
-    localStorage.setItem("taraos-bg-image", bgImage);
-    globalThis.dispatchEvent(new StorageEvent("storage", { key: "taraos-theme", newValue: theme }));
+  async function saveDisplay() {
+    await saveSettings({ theme, bgType, bgImage });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
-  function addLocation() {
+  async function addLocation() {
     const lat = Number.parseFloat(newLat);
     const lon = Number.parseFloat(newLon);
     if (!newLabel.trim()) { setAddError("Name is required"); return; }
@@ -127,17 +124,15 @@ export default function SettingsPage() {
     if (Number.isNaN(lon) || lon < -180 || lon > 180) { setAddError("Invalid longitude (−180 to 180)"); return; }
     const next = [...locations, { id: `custom-${Date.now()}`, label: newLabel.trim(), lat, lon }];
     setLocations(next);
-    saveLocations(next);
+    await saveSettings({ locations: next });
     setNewLabel(""); setNewLat(""); setNewLon(""); setAddError("");
   }
 
-  function removeLocation(id: string) {
+  async function removeLocation(id: string) {
     const next = locations.filter((l) => l.id !== id);
     setLocations(next);
-    saveLocations(next);
-    // Reset active if it was the removed one
-    const activeId = localStorage.getItem("taraos-active-location");
-    if (activeId === id) localStorage.removeItem("taraos-active-location");
+    const current = await loadSettings();
+    await saveSettings({ locations: next, activeLocationId: current.activeLocationId === id ? next[0]?.id ?? "" : current.activeLocationId });
   }
 
   // ── Detail pane ───────────────────────────────────────────────────────────
