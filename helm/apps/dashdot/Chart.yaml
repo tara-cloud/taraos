@@ -1,0 +1,5 @@
+apiVersion: v2
+name: dashdot
+description: Modern server dashboard with live system metrics
+version: 1.0.0
+appVersion: "latest"

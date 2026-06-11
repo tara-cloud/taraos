@@ -1,0 +1,5 @@
+apiVersion: v2
+name: memos
+description: Lightweight self-hosted memo hub for quick notes
+version: 1.0.0
+appVersion: "latest"

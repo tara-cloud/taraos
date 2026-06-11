@@ -1,0 +1,18 @@
+image:
+  repository: deluan/navidrome
+  tag: latest
+service:
+  port: 4533
+  nodePort: 30433
+storage:
+  enabled: true
+  hostPath: /DATA/AppData/navidrome/data
+  mountPath: /data
+  size: 2Gi
+env:
+  - name: ND_SCANSCHEDULE
+    value: 1h
+  - name: ND_LOGLEVEL
+    value: info
+  - name: ND_MUSICFOLDER
+    value: /data/music

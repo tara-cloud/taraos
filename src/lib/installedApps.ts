@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 const DATA_DIR = process.env.DATA_PATH ?? join(process.cwd(), "dev-data");
 const INSTALLED_FILE = join(DATA_DIR, "installed-apps.json");
@@ -10,6 +10,9 @@ export interface InstalledApp {
   installedTag: string;
   containerName: string;
   port: number;
+  installMethod: "helm" | "docker";
+  helmRelease?: string;
+  helmNamespace?: string;
 }
 
 export interface InstalledAppStatus extends InstalledApp {

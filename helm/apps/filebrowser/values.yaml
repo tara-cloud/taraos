@@ -1,0 +1,12 @@
+image:
+  repository: filebrowser/filebrowser
+  tag: latest
+service:
+  port: 8081
+  nodePort: 30081
+storage:
+  enabled: true
+  hostPath: /DATA
+  mountPath: /srv
+  size: 1Gi
+env: []

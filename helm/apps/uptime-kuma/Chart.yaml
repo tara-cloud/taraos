@@ -1,0 +1,5 @@
+apiVersion: v2
+name: uptime-kuma
+description: Self-hosted uptime monitoring tool
+version: 1.0.0
+appVersion: "latest"

@@ -1,0 +1,12 @@
+image:
+  repository: amir20/dozzle
+  tag: latest
+service:
+  port: 8080
+  nodePort: 30999
+storage:
+  enabled: false
+  mountPath: /data
+  size: 1Gi
+dockerSocket: true
+env: []

@@ -1,23 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 import { getCatalogApp } from "@/lib/catalog";
 import { readInstalled, writeInstalled } from "@/lib/installedApps";
-
-const execAsync = promisify(exec);
-
-function buildDockerRunCmd(app: NonNullable<ReturnType<typeof getCatalogApp>>): string {
-  const parts = [
-    "docker", "run", "-d",
-    `--name ${app.containerName}`,
-    "--restart=unless-stopped",
-    `-p ${app.defaultPort}:${app.defaultPort}`,
-  ];
-  for (const v of app.volumes ?? []) parts.push(`-v ${v}`);
-  for (const e of app.envVars ?? []) parts.push(`-e ${e}`);
-  parts.push(`${app.dockerImage}:latest`);
-  return parts.join(" ");
-}
+import { execAsync, k8sAuth, helmAuthFlags, resolveChart, buildSetFlags } from "@/lib/helm";
 
 export async function POST(req: NextRequest) {
   const { id } = await req.json() as { id: string };
@@ -29,17 +13,39 @@ export async function POST(req: NextRequest) {
   if (!entry) return NextResponse.json({ ok: false, message: "Not installed" }, { status: 404 });
 
   try {
-    await execAsync(`docker pull ${catalog.dockerImage}:latest`, { timeout: 180_000 });
-    // Stop and remove old container
-    await execAsync(`docker stop ${catalog.containerName}`, { timeout: 30_000 }).catch(() => {});
-    await execAsync(`docker rm ${catalog.containerName}`, { timeout: 10_000 }).catch(() => {});
-    // Re-run with fresh image
-    await execAsync(buildDockerRunCmd(catalog), { timeout: 30_000 });
+    if (entry.installMethod === "helm" && catalog.helmChart) {
+      const hc   = catalog.helmChart;
+      const auth = k8sAuth();
+      const af   = helmAuthFlags(auth);
+      const chart    = resolveChart(hc.chart);
+      const setFlags = hc.values ? buildSetFlags(hc.values) : "";
+      const verFlag  = hc.version ? `--version ${hc.version}` : "";
 
-    const updated = installed.map((a) =>
-      a.id === id ? { ...a, installedTag: "latest" } : a
-    );
-    writeInstalled(updated);
+      if (hc.repo && hc.repoName) {
+        await execAsync(`helm repo update ${hc.repoName} ${af}`, { timeout: 30_000 }).catch(() => {});
+      }
+
+      await execAsync(
+        `helm upgrade ${hc.releaseName} ${chart} ${af} --namespace ${hc.namespace} --reuse-values ${verFlag} ${setFlags}`.trim(),
+        { timeout: 180_000 }
+      );
+
+      writeInstalled(installed.map((a) => a.id === id ? { ...a, installedTag: hc.version ?? "latest" } : a));
+      return NextResponse.json({ ok: true });
+    }
+
+    // Docker fallback
+    await execAsync(`docker pull ${catalog.dockerImage}:latest`, { timeout: 180_000 });
+    await execAsync(`docker stop ${catalog.containerName} && docker rm ${catalog.containerName}`, { timeout: 30_000 }).catch(() => {});
+    const parts = [
+      "docker", "run", "-d", `--name ${catalog.containerName}`, "--restart=unless-stopped",
+      `-p ${catalog.defaultPort}:${catalog.defaultPort}`,
+      ...(catalog.volumes ?? []).map((v) => `-v ${v}`),
+      ...(catalog.envVars  ?? []).map((e) => `-e ${e}`),
+      `${catalog.dockerImage}:latest`,
+    ];
+    await execAsync(parts.join(" "), { timeout: 30_000 });
+    writeInstalled(installed.map((a) => a.id === id ? { ...a, installedTag: "latest" } : a));
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ ok: false, message: err instanceof Error ? err.message : String(err) }, { status: 500 });

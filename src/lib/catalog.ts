@@ -1,44 +1,49 @@
+export interface HelmChartConfig {
+  repo?: string;
+  repoName?: string;
+  chart: string;          // "./navidrome" for bundled, "portainer/portainer" for public
+  version?: string;
+  values?: Record<string, unknown>;
+  namespace: string;
+  releaseName: string;
+  servicePort: number;
+  nodePort: number;
+}
+
 export interface CatalogApp {
   id: string;
   name: string;
   icon: string;
   description: string;
   category: "media" | "productivity" | "utilities" | "monitoring" | "storage";
-  dockerImage: string;
-  defaultPort: number;
-  containerName: string;
   color: string;
+  // Helm-based install (preferred)
+  helmChart?: HelmChartConfig;
+  // Docker fallback (legacy / manual)
+  dockerImage?: string;
+  defaultPort?: number;
+  containerName?: string;
   volumes?: string[];
   envVars?: string[];
   manualInstall?: boolean;
 }
 
 export const CATALOG: CatalogApp[] = [
+  // ── Bundled helm charts ──────────────────────────────────────────────────
   {
     id: "navidrome",
     name: "Navidrome",
     icon: "🎵",
     description: "Modern music server and streamer compatible with Subsonic API.",
     category: "media",
-    dockerImage: "deluan/navidrome",
-    defaultPort: 4533,
-    containerName: "navidrome",
     color: "#9c36b5",
-    volumes: ["/DATA/AppData/navidrome/data:/data", "/DATA/AppData/navidrome/music:/music:ro"],
-    envVars: ["ND_SCANSCHEDULE=1h", "ND_LOGLEVEL=info"],
-  },
-  {
-    id: "pihole",
-    name: "Pi-hole",
-    icon: "🛡️",
-    description: "Network-wide ad blocker acting as a DNS sinkhole.",
-    category: "utilities",
-    dockerImage: "pihole/pihole",
-    defaultPort: 8080,
-    containerName: "pihole",
-    color: "#c92a2a",
-    volumes: ["/DATA/AppData/pihole/etc:/etc/pihole", "/DATA/AppData/pihole/dnsmasq:/etc/dnsmasq.d"],
-    envVars: ["WEBPASSWORD=admin", "TZ=Asia/Kolkata"],
+    helmChart: {
+      chart: "./navidrome",
+      namespace: "navidrome",
+      releaseName: "navidrome",
+      servicePort: 4533,
+      nodePort: 30433,
+    },
   },
   {
     id: "memos",
@@ -46,11 +51,14 @@ export const CATALOG: CatalogApp[] = [
     icon: "📝",
     description: "Lightweight, self-hosted memo hub for quick notes.",
     category: "productivity",
-    dockerImage: "neosmemo/memos",
-    defaultPort: 5230,
-    containerName: "memos",
     color: "#5c7cfa",
-    volumes: ["/DATA/AppData/memos:/var/opt/memos"],
+    helmChart: {
+      chart: "./memos",
+      namespace: "memos",
+      releaseName: "memos",
+      servicePort: 5230,
+      nodePort: 30530,
+    },
   },
   {
     id: "filebrowser",
@@ -58,23 +66,14 @@ export const CATALOG: CatalogApp[] = [
     icon: "📁",
     description: "Web-based file manager for browsing and managing your files.",
     category: "utilities",
-    dockerImage: "filebrowser/filebrowser",
-    defaultPort: 8081,
-    containerName: "filebrowser",
     color: "#f76707",
-    volumes: ["/DATA:/srv", "/DATA/AppData/filebrowser/database.db:/database.db"],
-  },
-  {
-    id: "portainer",
-    name: "Portainer",
-    icon: "🐋",
-    description: "Lightweight container management UI for Docker.",
-    category: "monitoring",
-    dockerImage: "portainer/portainer-ce",
-    defaultPort: 9000,
-    containerName: "portainer",
-    color: "#1971c2",
-    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "/DATA/AppData/portainer:/data"],
+    helmChart: {
+      chart: "./filebrowser",
+      namespace: "filebrowser",
+      releaseName: "filebrowser",
+      servicePort: 8081,
+      nodePort: 30081,
+    },
   },
   {
     id: "uptime-kuma",
@@ -82,36 +81,14 @@ export const CATALOG: CatalogApp[] = [
     icon: "📡",
     description: "Self-hosted uptime monitoring tool with a fancy UI.",
     category: "monitoring",
-    dockerImage: "louislam/uptime-kuma",
-    defaultPort: 3001,
-    containerName: "uptime-kuma",
     color: "#2f9e44",
-    volumes: ["/DATA/AppData/uptime-kuma:/app/data"],
-  },
-  {
-    id: "homeassistant",
-    name: "Home Assistant",
-    icon: "🏠",
-    description: "Open source home automation platform.",
-    category: "utilities",
-    dockerImage: "homeassistant/home-assistant",
-    defaultPort: 8123,
-    containerName: "homeassistant",
-    color: "#1a73e8",
-    volumes: ["/DATA/AppData/homeassistant:/config"],
-    envVars: ["TZ=Asia/Kolkata"],
-  },
-  {
-    id: "jellyfin",
-    name: "Jellyfin",
-    icon: "🎬",
-    description: "Free software media system to manage and stream your media.",
-    category: "media",
-    dockerImage: "jellyfin/jellyfin",
-    defaultPort: 8096,
-    containerName: "jellyfin",
-    color: "#7950f2",
-    volumes: ["/DATA/AppData/jellyfin/config:/config", "/DATA/AppData/jellyfin/cache:/cache", "/DATA/AppData/media:/media:ro"],
+    helmChart: {
+      chart: "./uptime-kuma",
+      namespace: "uptime-kuma",
+      releaseName: "uptime-kuma",
+      servicePort: 3001,
+      nodePort: 30401,
+    },
   },
   {
     id: "vaultwarden",
@@ -119,23 +96,14 @@ export const CATALOG: CatalogApp[] = [
     icon: "🔐",
     description: "Unofficial Bitwarden-compatible server written in Rust.",
     category: "productivity",
-    dockerImage: "vaultwarden/server",
-    defaultPort: 8222,
-    containerName: "vaultwarden",
     color: "#495057",
-    volumes: ["/DATA/AppData/vaultwarden:/data"],
-  },
-  {
-    id: "dashdot",
-    name: "Dash.",
-    icon: "📊",
-    description: "Modern server dashboard with live system metrics.",
-    category: "monitoring",
-    dockerImage: "mauricenino/dashdot",
-    defaultPort: 3005,
-    containerName: "dashdot",
-    color: "#e64980",
-    volumes: ["/proc:/mnt/host/proc:ro", "/sys:/mnt/host/sys:ro"],
+    helmChart: {
+      chart: "./vaultwarden",
+      namespace: "vaultwarden",
+      releaseName: "vaultwarden",
+      servicePort: 80,
+      nodePort: 30222,
+    },
   },
   {
     id: "mealie",
@@ -143,24 +111,14 @@ export const CATALOG: CatalogApp[] = [
     icon: "🍽️",
     description: "Self-hosted recipe manager and meal planner.",
     category: "productivity",
-    dockerImage: "hkotel/mealie",
-    defaultPort: 9925,
-    containerName: "mealie",
     color: "#12b886",
-    volumes: ["/DATA/AppData/mealie:/app/data"],
-  },
-  {
-    id: "gitea",
-    name: "Gitea",
-    icon: "🐙",
-    description: "Lightweight self-hosted Git service.",
-    category: "productivity",
-    dockerImage: "gitea/gitea",
-    defaultPort: 3030,
-    containerName: "gitea",
-    color: "#2f9e44",
-    volumes: ["/DATA/AppData/gitea:/data"],
-    envVars: ["USER_UID=1000", "USER_GID=1000"],
+    helmChart: {
+      chart: "./mealie",
+      namespace: "mealie",
+      releaseName: "mealie",
+      servicePort: 9000,
+      nodePort: 30925,
+    },
   },
   {
     id: "dozzle",
@@ -168,35 +126,137 @@ export const CATALOG: CatalogApp[] = [
     icon: "🪵",
     description: "Realtime log viewer for Docker containers.",
     category: "monitoring",
-    dockerImage: "amir20/dozzle",
-    defaultPort: 9999,
-    containerName: "dozzle",
     color: "#e03131",
-    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"],
+    helmChart: {
+      chart: "./dozzle",
+      namespace: "dozzle",
+      releaseName: "dozzle",
+      servicePort: 8080,
+      nodePort: 30999,
+    },
   },
   {
-    id: "btop",
-    name: "Btop",
-    icon: "📈",
-    description: "Resource monitor showing usage for CPU, RAM, disks, and network.",
+    id: "dashdot",
+    name: "Dash.",
+    icon: "📊",
+    description: "Modern server dashboard with live system metrics.",
     category: "monitoring",
-    dockerImage: "ghcr.io/bigbeartechworld/big-bear-btop",
-    defaultPort: 57575,
-    containerName: "big-bear-btop",
-    color: "#495057",
-    volumes: ["/proc:/host/proc:ro", "/sys:/host/sys:ro"],
+    color: "#e64980",
+    helmChart: {
+      chart: "./dashdot",
+      namespace: "dashdot",
+      releaseName: "dashdot",
+      servicePort: 3001,
+      nodePort: 30305,
+    },
   },
+
+  // ── Public Helm repo charts ───────────────────────────────────────────────
+  {
+    id: "portainer",
+    name: "Portainer",
+    icon: "🐋",
+    description: "Lightweight container management UI for Docker and Kubernetes.",
+    category: "monitoring",
+    color: "#1971c2",
+    helmChart: {
+      repo: "https://portainer.github.io/k8s/charts",
+      repoName: "portainer",
+      chart: "portainer/portainer",
+      namespace: "portainer",
+      releaseName: "portainer",
+      servicePort: 9000,
+      nodePort: 30900,
+      values: { service: { type: "NodePort", httpPort: 9000, httpNodePort: 30900 } },
+    },
+  },
+  {
+    id: "gitea",
+    name: "Gitea",
+    icon: "🐙",
+    description: "Lightweight self-hosted Git service.",
+    category: "productivity",
+    color: "#2f9e44",
+    helmChart: {
+      repo: "https://dl.gitea.com/charts/",
+      repoName: "gitea-charts",
+      chart: "gitea-charts/gitea",
+      namespace: "gitea",
+      releaseName: "gitea",
+      servicePort: 3000,
+      nodePort: 30030,
+      values: { service: { http: { type: "NodePort", nodePort: 30030 } }, gitea: { admin: { username: "admin", email: "admin@gitea.local" } } },
+    },
+  },
+  {
+    id: "jellyfin",
+    name: "Jellyfin",
+    icon: "🎬",
+    description: "Free software media system to manage and stream your media.",
+    category: "media",
+    color: "#7950f2",
+    helmChart: {
+      repo: "https://jellyfin.github.io/jellyfin-helm",
+      repoName: "jellyfin",
+      chart: "jellyfin/jellyfin",
+      namespace: "jellyfin",
+      releaseName: "jellyfin",
+      servicePort: 8096,
+      nodePort: 30896,
+      values: { service: { type: "NodePort", nodePort: 30896 } },
+    },
+  },
+
+  // ── Docker-only (complex multi-container or manual) ───────────────────────
   {
     id: "immich",
     name: "Immich",
     icon: "📷",
     description: "High-performance self-hosted photo and video backup solution.",
     category: "media",
+    color: "#1971c2",
     dockerImage: "ghcr.io/immich-app/immich-server",
     defaultPort: 2283,
     containerName: "immich_server",
-    color: "#1971c2",
     manualInstall: true,
+  },
+  {
+    id: "homeassistant",
+    name: "Home Assistant",
+    icon: "🏠",
+    description: "Open source home automation platform.",
+    category: "utilities",
+    color: "#1a73e8",
+    dockerImage: "homeassistant/home-assistant",
+    defaultPort: 8123,
+    containerName: "homeassistant",
+    manualInstall: true,
+  },
+  {
+    id: "pihole",
+    name: "Pi-hole",
+    icon: "🛡️",
+    description: "Network-wide ad blocker acting as a DNS sinkhole.",
+    category: "utilities",
+    color: "#c92a2a",
+    dockerImage: "pihole/pihole",
+    defaultPort: 8080,
+    containerName: "pihole",
+    volumes: ["/DATA/AppData/pihole/etc:/etc/pihole", "/DATA/AppData/pihole/dnsmasq:/etc/dnsmasq.d"],
+    envVars: ["WEBPASSWORD=admin", "TZ=Asia/Kolkata"],
+  },
+  {
+    id: "navidrome-docker",
+    name: "Navidrome (Docker)",
+    icon: "🎵",
+    description: "Music server — Docker version (legacy).",
+    category: "media",
+    color: "#9c36b5",
+    dockerImage: "deluan/navidrome",
+    defaultPort: 4533,
+    containerName: "navidrome",
+    volumes: ["/DATA/AppData/navidrome/data:/data", "/DATA/AppData/navidrome/music:/music:ro"],
+    envVars: ["ND_SCANSCHEDULE=1h", "ND_LOGLEVEL=info"],
   },
 ];
 
