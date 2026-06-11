@@ -128,7 +128,7 @@ export default function SettingsPage() {
     setUpdateError("");
     setUpdateInfo(null);
     try {
-      const res = await fetch("/api/update");
+      const res = await fetch("/api/update?bust=1");
       const data: UpdateInfo = await res.json();
       setUpdateInfo(data);
     } catch {

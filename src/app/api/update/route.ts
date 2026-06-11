@@ -37,9 +37,12 @@ function isNewer(latest: string, current: string): boolean {
 }
 
 // ── GET — check for update ────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: Request) {
   const now = Date.now();
-  if (cache && now - cache.ts < CACHE_TTL) {
+  const { searchParams } = new URL(req.url);
+  const bust = searchParams.get("bust") === "1";
+
+  if (!bust && cache && now - cache.ts < CACHE_TTL) {
     return NextResponse.json(cache.data);
   }
 
@@ -84,8 +87,8 @@ export async function POST() {
   const kubeconfig = process.env.KUBECONFIG  ?? "/etc/rancher/k3s/k3s.yaml";
   const chartPath  = process.env.HELM_CHART  ?? "/home/pi/helm-charts/taraos";
 
-  // Get latest version first
-  const checkRes = await GET();
+  // Get latest version first (bust cache so we always get fresh data)
+  const checkRes = await GET(new Request("http://localhost/api/update?bust=1"));
   const info = await checkRes.json() as UpdateInfo;
 
   if (!info.hasUpdate) {
