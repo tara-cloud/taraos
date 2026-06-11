@@ -472,6 +472,16 @@ export default function SettingsPage() {
     }
   }
 
+  // Mobile: "list" shows the menu, "detail" shows the selected setting
+  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
+  function selectSetting(key: PageKey) { setActive(key); setMobileView("detail"); }
+  const activeSectionLabel = SIDEBAR.find((s) => s.items.some((i) => i.key === active))?.label ?? "Settings";
+  const activeItemLabel    = SIDEBAR.flatMap((s) => s.items).find((i) => i.key === active)?.label ?? "";
+  const ICONS: Record<string, string> = {
+    "general.update": "🔄", "display.theme": "🎨", "display.background": "🖼️",
+    "clock.format": "🕐", "location.locations": "📍",
+  };
+
   return (
     <div className={theme} style={{ minHeight: "100vh" }}>
 
@@ -485,38 +495,31 @@ export default function SettingsPage() {
         paddingRight: "max(24px, env(safe-area-inset-right))",
         gap: 12,
       }}>
-        <button type="button" onClick={() => router.push("/")} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "5px 14px", color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-          🏠 Home
+        <button type="button"
+          onClick={() => mobileView === "detail" ? setMobileView("list") : router.push("/")}
+          style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "5px 14px", color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="settings-back-mobile">{mobileView === "detail" ? "‹ Back" : "🏠 Home"}</span>
+          <span className="settings-back-desktop">🏠 Home</span>
         </button>
-        <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>Settings</span>
+        <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>
+          <span className="settings-mobile-title">{mobileView === "detail" ? activeItemLabel : "Settings"}</span>
+          <span className="settings-desktop-title">Settings</span>
+        </span>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ display: "flex", maxWidth: 900, margin: "0 auto", padding: "24px 16px 48px", gap: 16, alignItems: "flex-start" }}>
-
-        {/* Sidebar */}
+      {/* ── Desktop two-column ── */}
+      <div className="settings-desktop" style={{ display: "flex", maxWidth: 900, margin: "0 auto", padding: "24px 16px 48px", gap: 16, alignItems: "flex-start" }}>
         <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
           {SIDEBAR.map((section) => (
             <div key={section.key}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 8px", marginBottom: 6 }}>
-                {section.label}
-              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 8px", marginBottom: 6 }}>{section.label}</div>
               <div className="glass-widget" style={{ padding: 0, overflow: "hidden" }}>
                 {section.items.map((item, i) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setActive(item.key)}
-                    style={{
-                      width: "100%",
-                      background: active === item.key ? "rgba(0,113,227,0.18)" : "transparent",
-                      border: "none",
-                      borderBottom: i < section.items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                      padding: "12px 16px", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      transition: "background 0.12s",
-                    }}
-                  >
+                  <button key={item.key} type="button" onClick={() => setActive(item.key)} style={{
+                    width: "100%", background: active === item.key ? "rgba(0,113,227,0.18)" : "transparent",
+                    border: "none", borderBottom: i < section.items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                    padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", transition: "background 0.12s",
+                  }}>
                     <span style={{ fontSize: 14, color: active === item.key ? "#fff" : "rgba(255,255,255,0.72)" }}>{item.label}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>›</span>
                   </button>
@@ -525,17 +528,59 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>{renderDetail()}</div>
+      </div>
 
-        {/* Detail pane */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {renderDetail()}
-        </div>
-
+      {/* ── Mobile list → detail ── */}
+      <div className="settings-mobile" style={{ padding: "16px 16px 48px" }}>
+        {mobileView === "list" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {SIDEBAR.map((section) => (
+              <div key={section.key}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 4px", marginBottom: 8 }}>{section.label}</div>
+                <div className="glass-widget" style={{ padding: 0, overflow: "hidden" }}>
+                  {section.items.map((item, i) => (
+                    <button key={item.key} type="button" onClick={() => selectSetting(item.key)} style={{
+                      width: "100%", background: "transparent", border: "none",
+                      borderBottom: i < section.items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                      padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                    }}>
+                      <span style={{ fontSize: 20, width: 32, textAlign: "center", flexShrink: 0 }}>{ICONS[item.key] ?? "⚙️"}</span>
+                      <span style={{ flex: 1, fontSize: 15, color: "rgba(255,255,255,0.85)", textAlign: "left" }}>{item.label}</span>
+                      <span style={{ fontSize: 16, color: "rgba(255,255,255,0.25)" }}>›</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16 }}>
+              {activeSectionLabel} › {activeItemLabel}
+            </div>
+            {renderDetail()}
+          </div>
+        )}
       </div>
 
       <style>{`
         input::placeholder { color: rgba(255,255,255,0.22); }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .settings-desktop { display: flex !important; }
+        .settings-mobile  { display: none !important; }
+        .settings-mobile-title  { display: none; }
+        .settings-desktop-title { display: inline; }
+        .settings-back-mobile   { display: none; }
+        .settings-back-desktop  { display: inline; }
+        @media (max-width: 640px) {
+          .settings-desktop { display: none !important; }
+          .settings-mobile  { display: block !important; }
+          .settings-mobile-title  { display: inline; }
+          .settings-desktop-title { display: none; }
+          .settings-back-mobile   { display: inline; }
+          .settings-back-desktop  { display: none; }
+        }
       `}</style>
     </div>
   );

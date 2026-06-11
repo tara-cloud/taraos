@@ -49,12 +49,17 @@ export default function Dashboard() {
       <UpdateBanner />
 
       <div className="dashboard-grid" style={{ paddingTop: 20, paddingBottom: 8 }}>
+
+        {/* Clock — full width on mobile, 8 cols on desktop */}
         <div className="widget-6x2" style={{ minHeight: 380 }}>
           <ClockWidget />
         </div>
-        <div style={{ gridColumn: "span 4", gridRow: "span 2", minHeight: 380 }}>
+
+        {/* Weather — full width on mobile, 4 cols on desktop beside clock */}
+        <div className="weather-col" style={{ gridColumn: "span 4", gridRow: "span 2", minHeight: 220 }}>
           <WeatherWidget />
         </div>
+
       </div>
 
       <div style={{ padding: "8px 24px 40px" }}>

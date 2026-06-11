@@ -174,8 +174,8 @@ export default function ClockWidget() {
 
       <div style={{ height: 1, background: "rgba(255,255,255,0.08)" }} />
 
-      {/* Calendar + Event panel side by side */}
-      <div style={{ display: "flex", gap: 20, flex: 1, minHeight: 0 }}>
+      {/* Calendar + Event panel — side by side on desktop, stacked on mobile */}
+      <div className="clock-body" style={{ display: "flex", gap: 20, flex: 1, minHeight: 0 }}>
 
         {/* Calendar */}
         <div style={{ flex: "0 0 auto", minWidth: 230 }}>
@@ -233,8 +233,8 @@ export default function ClockWidget() {
           </div>
         </div>
 
-        {/* Vertical divider */}
-        <div style={{ width: 1, background: "rgba(255,255,255,0.08)", flexShrink: 0 }} />
+        {/* Vertical divider — hidden on mobile */}
+        <div className="clock-divider" style={{ width: 1, background: "rgba(255,255,255,0.08)", flexShrink: 0 }} />
 
         {/* Events panel */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>

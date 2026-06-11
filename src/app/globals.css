@@ -195,4 +195,18 @@ body {
   .widget-4x2  { grid-column: span 12; grid-row: span 1; }
   .widget-6x2  { grid-column: span 12; grid-row: span 1; }
   .widget-half { grid-column: span 12; }
+
+  /* Clock: stack calendar above events on mobile */
+  .clock-body {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .clock-divider { display: none !important; }
+
+  /* Weather: full width below clock on mobile */
+  .weather-col {
+    grid-column: span 12 !important;
+    grid-row: span 1 !important;
+    min-height: 240px !important;
+  }
 }
