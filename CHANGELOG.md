@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.0] — 2026-06-12
+
+### Added in 2.5.0
+
+- **Remote App Registry** — App Store catalog now fetched from [tara-cloud/tara-app-registry](https://github.com/tara-cloud/tara-app-registry) at runtime (1-hour cache)
+- `POST /api/store/catalog` endpoint to force-refresh the catalog cache
+- `CATALOG_URL` env var to point to a custom registry
+- Fallback to static externalDocker-only catalog when registry is unreachable
+
+### Changed in 2.5.0
+
+- Bundled `helm/apps/` charts removed from taraos repo — all charts now in tara-app-registry
+- `catalog.ts` reduced to CasaOS externalDocker entries only
+- `resolveChart()` simplified — no more local `./path` resolution
+- Helm deployment no longer mounts `/home/pi/helm-charts/apps`
+
+---
+
 ## [1.3.0] — 2026-06-11
 
 ### Added in 1.3.0
