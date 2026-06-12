@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (catalog.manualInstall) return NextResponse.json({ ok: false, message: "This app requires manual installation." }, { status: 400 });
 
   const installed = readInstalled();
-  if (installed.some((a) => a.id === id)) return NextResponse.json({ ok: false, message: "Already installed" }, { status: 409 });
+  // Allow reinstall if already tracked (idempotent with helm upgrade --install)
 
   try {
     if (catalog.helmChart) {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       const verFlag  = hc.version ? `--version ${hc.version}` : "";
 
       await execAsync(
-        `helm install ${hc.releaseName} ${chart} ${af} --namespace ${hc.namespace} --create-namespace ${verFlag} ${setFlags}`.trim(),
+        `helm upgrade --install ${hc.releaseName} ${chart} ${af} --namespace ${hc.namespace} --create-namespace ${verFlag} ${setFlags}`.trim(),
         { timeout: 180_000 }
       );
 
