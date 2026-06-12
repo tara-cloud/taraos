@@ -38,7 +38,9 @@ export async function POST(req: NextRequest) {
         containerName: hc.releaseName, port: hc.nodePort,
         installMethod: "helm" as const, helmRelease: hc.releaseName, helmNamespace: hc.namespace,
       };
-      writeInstalled([...installed, entry]);
+      // Upsert — replace existing entry with same id to avoid duplicates
+      const withoutOld = installed.filter((a) => a.id !== id);
+      writeInstalled([...withoutOld, entry]);
       return NextResponse.json({ ok: true, app: entry });
     }
 
