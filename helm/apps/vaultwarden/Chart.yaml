@@ -1,5 +1,0 @@
-apiVersion: v2
-name: vaultwarden
-description: Unofficial Bitwarden-compatible server
-version: 1.0.0
-appVersion: "latest"

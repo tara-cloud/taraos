@@ -1,5 +1,0 @@
-apiVersion: v2
-name: filebrowser
-description: Web-based file manager for browsing and managing files
-version: 1.0.0
-appVersion: "latest"

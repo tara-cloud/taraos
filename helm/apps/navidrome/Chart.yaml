@@ -1,5 +1,0 @@
-apiVersion: v2
-name: navidrome
-description: Modern music server compatible with Subsonic/Airsonic API
-version: 1.0.0
-appVersion: "latest"

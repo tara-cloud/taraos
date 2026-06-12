@@ -3,7 +3,7 @@
 
 image:
   repository: pmananthu/taraos
-  tag: "2.4.4"
+  tag: "2.5.0"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -37,6 +37,8 @@ resources:
 probes:
   initialDelaySeconds: 15
   periodSeconds: 30
+
+catalogUrl: "https://raw.githubusercontent.com/tara-cloud/tara-app-registry/main/catalog.json"
 
 selfUpdate:
   enabled: true

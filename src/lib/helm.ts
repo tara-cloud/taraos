@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -16,7 +15,7 @@ export function k8sAuth() {
 
 // ── Shared helm flags ─────────────────────────────────────────────────────────
 export function helmAuthFlags(auth: ReturnType<typeof k8sAuth>): string {
-  if (!auth.token) return ""; // dev — no in-cluster token, use default kubeconfig
+  if (!auth.token) return "";
   return [
     `--kube-apiserver ${auth.apiserver}`,
     `--kube-ca-file ${auth.caFile}`,
@@ -24,13 +23,9 @@ export function helmAuthFlags(auth: ReturnType<typeof k8sAuth>): string {
   ].join(" ");
 }
 
-// ── Chart path resolution ─────────────────────────────────────────────────────
-const CHARTS_DIR = process.env.HELM_APPS_DIR ?? "/home/pi/helm-charts/apps";
-
+// ── Chart reference — all charts come from the registry (no local bundled paths) ──
 export function resolveChart(chartRef: string): string {
-  return chartRef.startsWith("./")
-    ? join(CHARTS_DIR, chartRef.slice(2))
-    : chartRef;
+  return chartRef;
 }
 
 // ── Build --set flags from values object ─────────────────────────────────────
@@ -42,3 +37,4 @@ export function buildSetFlags(values: Record<string, unknown>, prefix = ""): str
     return [`--set ${key}=${String(v)}`];
   }).join(" ");
 }
+

@@ -37,6 +37,8 @@ spec:
               value: "0.0.0.0"
             - name: DATA_PATH
               value: "/data"
+            - name: CATALOG_URL
+              value: {{ .Values.catalogUrl | quote }}
             {{- if .Values.selfUpdate.enabled }}
             - name: HELM_PATH
               value: {{ .Values.selfUpdate.helmPath | quote }}
@@ -84,9 +86,6 @@ spec:
             - name: helm-charts
               mountPath: /home/pi/helm-charts/taraos
               readOnly: true
-            - name: helm-apps
-              mountPath: /home/pi/helm-charts/apps
-              readOnly: true
             {{- end }}
             - name: sys
               mountPath: /sys
@@ -120,10 +119,6 @@ spec:
           hostPath:
             path: {{ .Values.selfUpdate.chartPath | quote }}
             type: Directory
-        - name: helm-apps
-          hostPath:
-            path: /home/pi/helm-charts/apps
-            type: DirectoryOrCreate
         {{- end }}
         - name: sys
           hostPath:
