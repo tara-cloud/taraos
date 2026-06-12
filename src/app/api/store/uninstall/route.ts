@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCatalogApp } from "@/lib/catalog";
+import { getCatalogApp } from "@/lib/remoteCatalog";
 import { readInstalled, writeInstalled } from "@/lib/installedApps";
 import { execAsync, k8sAuth, helmAuthFlags } from "@/lib/helm";
 
 export async function POST(req: NextRequest) {
   const { id } = await req.json() as { id: string };
-  const catalog = getCatalogApp(id);
+  const catalog = await getCatalogApp(id);
   if (!catalog) return NextResponse.json({ ok: false, message: "App not found" }, { status: 404 });
 
   const installed = readInstalled();
