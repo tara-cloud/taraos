@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       const verFlag  = hc.version ? `--version ${hc.version}` : "";
 
       if (hc.repo && hc.repoName) {
-        await execAsync(`helm repo update ${hc.repoName} ${af}`, { timeout: 30_000 }).catch(() => {});
+        await execAsync(`helm repo update ${hc.repoName}`, { timeout: 30_000 }).catch(() => {});
       }
 
       await execAsync(

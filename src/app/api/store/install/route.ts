@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
       const auth = k8sAuth();
       const af   = helmAuthFlags(auth);
 
-      // Add public repo if needed
+      // Add public repo if needed (no k8s flags — helm repo add doesn't need them)
       if (hc.repo && hc.repoName) {
-        await execAsync(`helm repo add ${hc.repoName} ${hc.repo} ${af}`, { timeout: 30_000 }).catch(() => {});
-        await execAsync(`helm repo update ${hc.repoName} ${af}`, { timeout: 30_000 }).catch(() => {});
+        await execAsync(`helm repo add ${hc.repoName} ${hc.repo}`, { timeout: 30_000 }).catch(() => {});
+        await execAsync(`helm repo update ${hc.repoName}`, { timeout: 30_000 }).catch(() => {});
       }
 
       const chart    = resolveChart(hc.chart);
