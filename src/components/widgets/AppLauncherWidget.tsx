@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getCatalogApp } from "@/lib/catalog";
+import { getCatalogApp as getStaticCatalogApp } from "@/lib/catalog";
+import { fetchRemoteCatalog } from "@/lib/remoteCatalog";
 import { frameUrl } from "@/lib/frame";
 import type { InstalledAppStatus } from "@/lib/installedApps";
+import type { CatalogApp } from "@/lib/catalog";
 
 interface AppEntry {
   name: string;
@@ -21,6 +23,7 @@ const INTERNAL_APPS: AppEntry[] = [
 
 export default function AppLauncherWidget() {
   const [installedApps, setInstalledApps] = useState<InstalledAppStatus[]>([]);
+  const [remoteCatalog, setRemoteCatalog] = useState<CatalogApp[]>([]);
   const [statuses, setStatuses]           = useState<Record<string, boolean>>({});
   const [hasAnyUpdate, setHasAnyUpdate]   = useState(false);
   const [query, setQuery]     = useState("");
@@ -29,6 +32,8 @@ export default function AppLauncherWidget() {
   const inputRef   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Load remote catalog once so we can resolve icons/names for registry apps
+    fetchRemoteCatalog().then(setRemoteCatalog).catch(() => {});
     fetchStatuses();
     const id = setInterval(fetchStatuses, 15000);
     return () => clearInterval(id);
@@ -69,16 +74,22 @@ export default function AppLauncherWidget() {
     } catch { /* ignore */ }
   }
 
-  // Build dynamic app entries from installed apps
-  const dynamicApps: AppEntry[] = installedApps.map((app) => {
-    const catalog = getCatalogApp(app.id);
+  // Build dynamic app entries from installed apps — look up in remote catalog first
+  const seenPorts = new Set<number>();
+  const dynamicApps: AppEntry[] = installedApps.flatMap((app) => {
+    // Skip duplicate ports (e.g. venus-budget Docker + venus helm both on 3000)
+    if (seenPorts.has(app.port)) return [];
+    seenPorts.add(app.port);
+
+    const catalog = remoteCatalog.find((c) => c.id === app.id)
+      ?? getStaticCatalogApp(app.id);
     const hostname = globalThis.window === undefined ? "pi" : globalThis.location.hostname;
-    return {
+    return [{
       name:  catalog?.name  ?? app.id,
       icon:  catalog?.icon  ?? "📦",
       url:   `http://${hostname}:${app.port}`,
       color: catalog?.color ?? "#495057",
-    };
+    }];
   });
 
   const ALL_APPS: AppEntry[] = [...INTERNAL_APPS, ...dynamicApps];
