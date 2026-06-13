@@ -51,7 +51,6 @@ export default function ClockWidget() {
   const [clockFontSize, setClockFontSize] = useState(60);
   const [dateFormat, setDateFormat]       = useState("full");
   const [tithiUrl, setTithiUrl]           = useState("");
-  const [tithiTick, setTithiTick]         = useState(0);
   const [events, setEvents] = useState<EventMap>(() => {
     if (globalThis.window === undefined) return SAMPLE_EVENTS;
     try {
@@ -67,12 +66,6 @@ export default function ClockWidget() {
     return () => clearInterval(id);
   }, []);
 
-  // Refresh Tithi events every 30 s so new events appear without a page reload
-  useEffect(() => {
-    if (!tithiUrl) return;
-    const id = setInterval(() => setTithiTick(t => t + 1), 30_000);
-    return () => clearInterval(id);
-  }, [tithiUrl]);
 
   useEffect(() => {
     async function loadClockSettings() {
@@ -97,26 +90,43 @@ export default function ClockWidget() {
     return () => globalThis.removeEventListener("storage", onStorage);
   }, []);
 
-  // Load events: from Tithi API when configured, otherwise localStorage
+  // Resolve Tithi URL: explicit setting → auto-detect same host on :30302
+  useEffect(() => {
+    if (tithiUrl) return;
+    if (globalThis.window === undefined) return;
+    const auto = `${globalThis.location.protocol}//${globalThis.location.hostname}:30302`;
+    fetch(`${auto}/api/public/events?from=2020-01-01&to=2020-01-02`)
+      .then(r => { if (r.ok) setTithiUrl(auto); })
+      .catch(() => {/* Tithi not running */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tithiUrl]);
+
+  // Load events: from Tithi API, refresh every 30 s
   useEffect(() => {
     if (!tithiUrl) return;
-    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-    fetch(`${tithiUrl}/api/public/events?from=${from}&to=${to}`)
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { id: string; title: string; startAt: string; color: string }[] | null) => {
-        if (!data) return;
-        const map: EventMap = {};
-        for (const ev of data) {
-          const d = new Date(ev.startAt);
-          const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-          if (!map[k]) map[k] = [];
-          map[k].push({ id: ev.id, title: ev.title, time: `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`, color: ev.color });
-        }
-        setEvents(map);
-      })
-      .catch(() => {/* Tithi unreachable — keep localStorage events */});
-  }, [tithiUrl, tithiTick]);
+    function fetchEvents() {
+      const now = new Date();
+      const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      fetch(`${tithiUrl}/api/public/events?from=${from}&to=${to}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((data: { id: string; title: string; startAt: string; color: string }[] | null) => {
+          if (!data) return;
+          const map: EventMap = {};
+          for (const ev of data) {
+            const d = new Date(ev.startAt);
+            const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            if (!map[k]) map[k] = [];
+            map[k].push({ id: ev.id, title: ev.title, time: `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`, color: ev.color });
+          }
+          setEvents(map);
+        })
+        .catch(() => {/* Tithi unreachable */});
+    }
+    fetchEvents();
+    const id = setInterval(fetchEvents, 30_000);
+    return () => clearInterval(id);
+  }, [tithiUrl]);
 
   function saveEvents(next: EventMap) {
     setEvents(next);
