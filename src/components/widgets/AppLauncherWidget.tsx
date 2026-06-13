@@ -29,6 +29,8 @@ export default function AppLauncherWidget() {
   const [installedApps, setInstalledApps] = useState<InstalledAppStatus[]>([]);
   const [remoteCatalog, setRemoteCatalog] = useState<CatalogApp[]>([]);
   const [appIcons, setAppIcons]           = useState<Record<string, string>>({});
+  const [appIconSize, setAppIconSize]     = useState(56);
+  const [appLabelSize, setAppLabelSize]   = useState(11);
   const [statuses, setStatuses]           = useState<Record<string, boolean>>({});
   const [hasAnyUpdate, setHasAnyUpdate]   = useState(false);
   const [query, setQuery]     = useState("");
@@ -36,12 +38,22 @@ export default function AppLauncherWidget() {
   const [focusIdx, setFocusIdx]     = useState(0);
   const inputRef   = useRef<HTMLInputElement>(null);
 
+  function loadFromSettings() {
+    loadSettings().then((s) => {
+      if (s?.appIcons)     setAppIcons(s.appIcons);
+      if (s?.appIconSize)  setAppIconSize(s.appIconSize);
+      if (s?.appLabelSize) setAppLabelSize(s.appLabelSize);
+    }).catch(() => {});
+  }
+
   useEffect(() => {
     fetchRemoteCatalog().then(setRemoteCatalog).catch(() => {});
-    loadSettings().then((s) => { if (s?.appIcons) setAppIcons(s.appIcons); }).catch(() => {});
+    loadFromSettings();
     fetchStatuses();
     const id = setInterval(fetchStatuses, 15000);
-    return () => clearInterval(id);
+    function onStorage() { loadFromSettings(); }
+    globalThis.addEventListener("storage", onStorage);
+    return () => { clearInterval(id); globalThis.removeEventListener("storage", onStorage); };
   }, []);
 
   // Global keyboard shortcut: Cmd+K
@@ -197,7 +209,7 @@ export default function AppLauncherWidget() {
               <Link
                 key={app.name}
                 {...linkProps}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: 72, textDecoration: "none", cursor: "pointer" }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: Math.max(72, appIconSize + 16), textDecoration: "none", cursor: "pointer" }}
                 onMouseEnter={(e) => {
                   const icon = e.currentTarget.querySelector<HTMLDivElement>(".app-icon-inner");
                   if (icon) { icon.style.transform = "translateY(-4px) scale(1.08)"; icon.style.boxShadow = `0 8px 24px ${app.color}44`; }
@@ -209,7 +221,7 @@ export default function AppLauncherWidget() {
               >
                 <div style={{ position: "relative" }}>
                   <div className="app-icon-inner" style={{ transition: "transform 0.15s, box-shadow 0.15s", borderRadius: 16 }}>
-                    <AppIcon icon={app.icon} iconUrl={app.iconUrl} customIcon={app.customIcon} size={56} borderRadius={16} color={app.color} />
+                    <AppIcon icon={app.icon} iconUrl={app.iconUrl} customIcon={app.customIcon} size={appIconSize} borderRadius={Math.round(appIconSize * 0.285)} color={app.color} />
                   </div>
                   {/* Running status dot for installed apps */}
                   {hasStatus && (
@@ -225,7 +237,7 @@ export default function AppLauncherWidget() {
                     }} />
                   )}
                 </div>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.60)", textAlign: "center", lineHeight: 1.3 }}>
+                <span style={{ fontSize: appLabelSize, color: "rgba(255,255,255,0.60)", textAlign: "center", lineHeight: 1.3 }}>
                   {app.name}
                 </span>
               </Link>

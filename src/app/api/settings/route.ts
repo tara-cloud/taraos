@@ -16,6 +16,8 @@ export interface AppSettings {
   locations:   { id: string; label: string; lat: number; lon: number }[];
   activeLocationId: string;
   appIcons:    Record<string, string>; // appId → custom iconUrl or emoji
+  appIconSize: number;   // icon size in px (default 56)
+  appLabelSize: number;  // label font size in px (default 11)
 }
 
 const DEFAULTS: AppSettings = {
@@ -33,6 +35,8 @@ const DEFAULTS: AppSettings = {
   ],
   activeLocationId: "kerala",
   appIcons: {},
+  appIconSize: 56,
+  appLabelSize: 11,
 };
 
 function readSettings(): AppSettings {

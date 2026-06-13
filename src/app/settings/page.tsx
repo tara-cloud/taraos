@@ -30,6 +30,7 @@ type PageKey =
   | "general.update"
   | "display.theme"
   | "display.background"
+  | "display.apps"
   | "clock.format"
   | "location.locations"
   | "apps.list"
@@ -49,6 +50,7 @@ const SIDEBAR = [
     items: [
       { key: "display.theme"      as PageKey, label: "Theme" },
       { key: "display.background" as PageKey, label: "Background" },
+      { key: "display.apps"       as PageKey, label: "App Icons" },
     ],
   },
   {
@@ -97,6 +99,8 @@ export default function SettingsPage() {
   const [theme, setTheme]     = useState("bg-nebula");
   const [bgType, setBgType]   = useState("Gradient");
   const [bgImage, setBgImage] = useState("");
+  const [appIconSize,  setAppIconSize]  = useState(56);
+  const [appLabelSize, setAppLabelSize] = useState(11);
 
   // Clock settings
   const [clockFormat, setClockFormat]     = useState<"12" | "24">("24");
@@ -137,6 +141,8 @@ export default function SettingsPage() {
       setDateFormat(s.dateFormat);
       setLocations(s.locations);
       if (s.appIcons) setAppIcons(s.appIcons);
+      if (s.appIconSize)  setAppIconSize(s.appIconSize);
+      if (s.appLabelSize) setAppLabelSize(s.appLabelSize);
     });
     // Load installed k3s apps + remote catalog for icons
     fetch("/api/store/installed")
@@ -199,6 +205,8 @@ export default function SettingsPage() {
 
   function setThemeAndSave(v: string)          { setTheme(v);   saveSettings({ theme: v }); }
   function setBgTypeAndSave(v: string)         { setBgType(v);  saveSettings({ bgType: v, bgImage }); }
+  function setAppIconSizeAndSave(v: number)    { setAppIconSize(v);  saveSettings({ appIconSize: v }); }
+  function setAppLabelSizeAndSave(v: number)   { setAppLabelSize(v); saveSettings({ appLabelSize: v }); }
   function setBgImageAndSave(v: string)        { setBgImage(v); }
   function saveBgImage()                       { saveSettings({ bgType, bgImage }); }
   function setClockFormatAndSave(v: "12"|"24") { setClockFormat(v); saveSettings({ clockFormat: v }); }
@@ -394,6 +402,63 @@ export default function SettingsPage() {
             )}
           </>
         );
+
+      case "display.apps": {
+        const iconPreviewSize = appIconSize;
+        return (
+          <>
+            <SectionTitle>Preview</SectionTitle>
+            <Card>
+              <Row last>
+                <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "12px 0" }}>
+                  {(["📷", "💰", "🎵"] as const).map((icon) => (
+                    <div key={icon} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: iconPreviewSize, height: iconPreviewSize, borderRadius: iconPreviewSize * 0.28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: iconPreviewSize * 0.52, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                        {icon}
+                      </div>
+                      <span style={{ fontSize: appLabelSize, color: "rgba(255,255,255,0.60)" }}>App Name</span>
+                    </div>
+                  ))}
+                </div>
+              </Row>
+            </Card>
+
+            <SectionTitle mt={20}>Icon Size</SectionTitle>
+            <Card>
+              <Row last>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <input
+                    type="range" min={36} max={84} step={4}
+                    value={appIconSize}
+                    onChange={(e) => setAppIconSize(Number(e.target.value))}
+                    onMouseUp={(e) => setAppIconSizeAndSave(Number((e.target as HTMLInputElement).value))}
+                    onTouchEnd={(e) => setAppIconSizeAndSave(Number((e.target as HTMLInputElement).value))}
+                    style={{ flex: 1, accentColor: "#0071e3" }}
+                  />
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.70)", width: 36, textAlign: "right" }}>{appIconSize}px</span>
+                </div>
+              </Row>
+            </Card>
+
+            <SectionTitle mt={20}>Label Size</SectionTitle>
+            <Card>
+              <Row last>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <input
+                    type="range" min={9} max={16} step={1}
+                    value={appLabelSize}
+                    onChange={(e) => setAppLabelSize(Number(e.target.value))}
+                    onMouseUp={(e) => setAppLabelSizeAndSave(Number((e.target as HTMLInputElement).value))}
+                    onTouchEnd={(e) => setAppLabelSizeAndSave(Number((e.target as HTMLInputElement).value))}
+                    style={{ flex: 1, accentColor: "#0071e3" }}
+                  />
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.70)", width: 36, textAlign: "right" }}>{appLabelSize}px</span>
+                </div>
+              </Row>
+            </Card>
+          </>
+        );
+      }
 
       case "location.locations":
         return (
@@ -686,6 +751,7 @@ export default function SettingsPage() {
   const activeItemLabel    = isAppPage ? (activeAppCatalog?.name ?? activeAppId ?? "") : (SIDEBAR.flatMap((s) => s.items).find((i) => i.key === active)?.label ?? "");
   const ICONS: Record<string, string> = {
     "general.update": "🔄", "display.theme": "🎨", "display.background": "🖼️",
+    "display.apps": "🔢",
     "clock.format": "🕐", "location.locations": "📍",
   };
 
