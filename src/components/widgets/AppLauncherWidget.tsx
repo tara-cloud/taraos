@@ -4,13 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getCatalogApp as getStaticCatalogApp } from "@/lib/catalog";
 import { fetchRemoteCatalog } from "@/lib/remoteCatalog";
+import { loadSettings } from "@/lib/settings";
 import { frameUrl } from "@/lib/frame";
+import AppIcon from "@/components/AppIcon";
 import type { InstalledAppStatus } from "@/lib/installedApps";
 import type { CatalogApp } from "@/lib/catalog";
 
 interface AppEntry {
   name: string;
   icon: string;
+  iconUrl?: string;
+  customIcon?: string;
   url: string;
   color: string;
   internal?: boolean;
@@ -24,6 +28,7 @@ const INTERNAL_APPS: AppEntry[] = [
 export default function AppLauncherWidget() {
   const [installedApps, setInstalledApps] = useState<InstalledAppStatus[]>([]);
   const [remoteCatalog, setRemoteCatalog] = useState<CatalogApp[]>([]);
+  const [appIcons, setAppIcons]           = useState<Record<string, string>>({});
   const [statuses, setStatuses]           = useState<Record<string, boolean>>({});
   const [hasAnyUpdate, setHasAnyUpdate]   = useState(false);
   const [query, setQuery]     = useState("");
@@ -32,8 +37,8 @@ export default function AppLauncherWidget() {
   const inputRef   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Load remote catalog once so we can resolve icons/names for registry apps
     fetchRemoteCatalog().then(setRemoteCatalog).catch(() => {});
+    loadSettings().then((s) => { if (s?.appIcons) setAppIcons(s.appIcons); }).catch(() => {});
     fetchStatuses();
     const id = setInterval(fetchStatuses, 15000);
     return () => clearInterval(id);
@@ -85,10 +90,12 @@ export default function AppLauncherWidget() {
       ?? getStaticCatalogApp(app.id);
     const hostname = globalThis.window === undefined ? "pi" : globalThis.location.hostname;
     return [{
-      name:  catalog?.name  ?? app.id,
-      icon:  catalog?.icon  ?? "📦",
-      url:   `http://${hostname}:${app.port}`,
-      color: catalog?.color ?? "#495057",
+      name:       catalog?.name    ?? app.id,
+      icon:       catalog?.icon    ?? "📦",
+      iconUrl:    catalog?.iconUrl,
+      customIcon: appIcons[app.id],
+      url:        `http://${hostname}:${app.port}`,
+      color:      catalog?.color   ?? "#495057",
     }];
   });
 
@@ -148,9 +155,7 @@ export default function AppLauncherWidget() {
                     style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 18px", textDecoration: "none", background: i === focusIdx ? "rgba(255,255,255,0.08)" : "transparent", transition: "background 0.1s" }}
                     onMouseEnter={() => setFocusIdx(i)}
                   >
-                    <div style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: `${app.color}22`, border: `1px solid ${app.color}33` }}>
-                      {app.icon}
-                    </div>
+                    <AppIcon icon={app.icon} iconUrl={app.iconUrl} customIcon={app.customIcon} size={40} borderRadius={11} color={app.color} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, color: "rgba(255,255,255,0.88)", fontWeight: 500 }}>{app.name}</div>
                       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>{app.url}</div>
@@ -203,8 +208,8 @@ export default function AppLauncherWidget() {
                 }}
               >
                 <div style={{ position: "relative" }}>
-                  <div className="app-icon-inner" style={{ width: 56, height: 56, borderRadius: 16, fontSize: 28, display: "flex", alignItems: "center", justifyContent: "center", background: `${app.color}25`, border: `1px solid ${app.color}40`, transition: "transform 0.15s, box-shadow 0.15s" }}>
-                    {app.icon}
+                  <div className="app-icon-inner" style={{ transition: "transform 0.15s, box-shadow 0.15s", borderRadius: 16 }}>
+                    <AppIcon icon={app.icon} iconUrl={app.iconUrl} customIcon={app.customIcon} size={56} borderRadius={16} color={app.color} />
                   </div>
                   {/* Running status dot for installed apps */}
                   {hasStatus && (

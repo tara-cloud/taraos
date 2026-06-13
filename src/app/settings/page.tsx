@@ -7,6 +7,7 @@ import { loadSettings, saveSettings } from "@/lib/settings";
 import { fetchRemoteCatalog } from "@/lib/remoteCatalog";
 import { getCatalogApp } from "@/lib/catalog";
 import { frameUrl } from "@/lib/frame";
+import AppIcon from "@/components/AppIcon";
 import type { WeatherLocation } from "@/lib/locations";
 import type { UpdateInfo } from "@/app/api/update/route";
 import type { InstalledAppStatus } from "@/lib/installedApps";
@@ -107,6 +108,8 @@ export default function SettingsPage() {
   const [installedApps, setInstalledApps] = useState<InstalledAppStatus[]>([]);
   const [remoteCatalog, setRemoteCatalog] = useState<CatalogApp[]>([]);
   const [appActions, setAppActions]       = useState<Record<string, string>>({});
+  const [appIcons, setAppIcons]           = useState<Record<string, string>>({});
+  const [iconInputs, setIconInputs]       = useState<Record<string, string>>({});
 
   // Locations state
   const [locations, setLocations] = useState<WeatherLocation[]>([]);
@@ -133,6 +136,7 @@ export default function SettingsPage() {
       setClockFontSize(s.clockSize);
       setDateFormat(s.dateFormat);
       setLocations(s.locations);
+      if (s.appIcons) setAppIcons(s.appIcons);
     });
     // Load installed k3s apps + remote catalog for icons
     fetch("/api/store/installed")
@@ -221,6 +225,12 @@ export default function SettingsPage() {
     } catch {
       setAppActions((prev) => ({ ...prev, [id]: "error: network" }));
     }
+  }
+
+  async function saveAppIcon(appId: string, value: string) {
+    const next = { ...appIcons, [appId]: value };
+    setAppIcons(next);
+    await saveSettings({ appIcons: next });
   }
 
   async function addLocation() {
@@ -522,9 +532,14 @@ export default function SettingsPage() {
           <>
             {/* App header */}
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, background: `${appCatalog?.color ?? "#495057"}22`, border: `1px solid ${appCatalog?.color ?? "#495057"}44`, flexShrink: 0 }}>
-                {appCatalog?.icon ?? "📦"}
-              </div>
+              <AppIcon
+                icon={appCatalog?.icon ?? "📦"}
+                iconUrl={appCatalog?.iconUrl}
+                customIcon={appIcons[appId]}
+                size={52}
+                borderRadius={14}
+                color={appCatalog?.color ?? "#495057"}
+              />
               <div>
                 <div style={{ fontSize: 17, fontWeight: 600, color: "rgba(255,255,255,0.90)" }}>{appCatalog?.name ?? appId}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.40)", marginTop: 2 }}>{appCatalog?.description ?? ""}</div>
@@ -609,6 +624,52 @@ export default function SettingsPage() {
             {action && action !== "update" && action !== "uninstall" && (
               <div style={{ marginTop: 10, fontSize: 12, color: action.startsWith("error") ? "#ff3b30" : "#34c759" }}>{action}</div>
             )}
+
+            <SectionTitle mt={24}>Custom Icon</SectionTitle>
+            <Card>
+              <Row>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <AppIcon
+                    icon={appCatalog?.icon ?? "📦"}
+                    iconUrl={appCatalog?.iconUrl}
+                    customIcon={iconInputs[appId] ?? appIcons[appId]}
+                    size={40}
+                    borderRadius={10}
+                    color={appCatalog?.color ?? "#495057"}
+                  />
+                  <input
+                    value={iconInputs[appId] ?? appIcons[appId] ?? ""}
+                    onChange={(e) => setIconInputs((prev) => ({ ...prev, [appId]: e.target.value }))}
+                    placeholder="Paste URL or emoji…"
+                    style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 14, color: "rgba(255,255,255,0.85)" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = iconInputs[appId] ?? "";
+                      saveAppIcon(appId, val);
+                    }}
+                    style={{ background: "rgba(0,113,227,0.25)", border: "1px solid rgba(0,113,227,0.45)", borderRadius: 8, color: "rgba(255,255,255,0.85)", fontSize: 12, padding: "5px 12px", cursor: "pointer", flexShrink: 0 }}
+                  >
+                    Save
+                  </button>
+                  {appIcons[appId] && (
+                    <button
+                      type="button"
+                      onClick={() => { setIconInputs((prev) => ({ ...prev, [appId]: "" })); saveAppIcon(appId, ""); }}
+                      style={{ background: "none", border: "none", color: "rgba(255,255,255,0.30)", fontSize: 16, cursor: "pointer", padding: 0 }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </Row>
+              <Row last>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
+                  Paste an image URL (PNG/SVG) or an emoji. Leave empty to use the official icon.
+                </div>
+              </Row>
+            </Card>
           </>
         );
       }
@@ -687,7 +748,7 @@ export default function SettingsPage() {
                       border: "none", borderBottom: i < installedApps.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
                       padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "background 0.12s",
                     }}>
-                      <span style={{ fontSize: 18, flexShrink: 0 }}>{cat?.icon ?? "📦"}</span>
+                      <AppIcon icon={cat?.icon ?? "📦"} iconUrl={cat?.iconUrl} customIcon={appIcons[app.id]} size={24} borderRadius={6} color={cat?.color ?? "#495057"} />
                       <span style={{ flex: 1, fontSize: 14, color: active === key ? "#fff" : "rgba(255,255,255,0.72)", textAlign: "left" }}>{cat?.name ?? app.id}</span>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: app.running ? "#34c759" : "rgba(255,255,255,0.25)", flexShrink: 0, boxShadow: app.running ? "0 0 5px #34c759" : "none" }} />
                     </button>
@@ -736,7 +797,7 @@ export default function SettingsPage() {
                         borderBottom: i < installedApps.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
                         padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
                       }}>
-                        <span style={{ fontSize: 22, width: 32, textAlign: "center", flexShrink: 0 }}>{cat?.icon ?? "📦"}</span>
+                        <AppIcon icon={cat?.icon ?? "📦"} iconUrl={cat?.iconUrl} customIcon={appIcons[app.id]} size={32} borderRadius={8} color={cat?.color ?? "#495057"} />
                         <span style={{ flex: 1, fontSize: 15, color: "rgba(255,255,255,0.85)", textAlign: "left" }}>{cat?.name ?? app.id}</span>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: app.running ? "#34c759" : "rgba(255,255,255,0.25)", flexShrink: 0 }} />
                         <span style={{ fontSize: 16, color: "rgba(255,255,255,0.25)" }}>›</span>

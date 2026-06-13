@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CATALOG, type CatalogApp } from "@/lib/catalog";
 import { getCachedSettings, loadSettings } from "@/lib/settings";
 import { frameUrl } from "@/lib/frame";
+import AppIcon from "@/components/AppIcon";
 import type { InstalledAppStatus } from "@/lib/installedApps";
 
 type CatalogEntry = CatalogApp & { installed: boolean };
@@ -145,13 +146,7 @@ export default function StorePage() {
       <div className="glass-widget" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 28, background: `${app.color}22`, border: `1px solid ${app.color}33`,
-          }}>
-            {app.icon}
-          </div>
+          <AppIcon icon={app.icon} iconUrl={app.iconUrl} size={52} borderRadius={14} color={app.color} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.90)" }}>{app.name}</span>

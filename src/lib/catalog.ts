@@ -16,7 +16,8 @@ export interface HelmChartConfig {
 export interface CatalogApp {
   id: string;
   name: string;
-  icon: string;
+  icon: string;       // fallback emoji
+  iconUrl?: string;   // official icon URL (SVG/PNG)
   description: string;
   category: "media" | "productivity" | "utilities" | "monitoring" | "storage";
   color: string;

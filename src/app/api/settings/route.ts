@@ -15,6 +15,7 @@ export interface AppSettings {
   dateFormat:  string;
   locations:   { id: string; label: string; lat: number; lon: number }[];
   activeLocationId: string;
+  appIcons:    Record<string, string>; // appId → custom iconUrl or emoji
 }
 
 const DEFAULTS: AppSettings = {
@@ -31,6 +32,7 @@ const DEFAULTS: AppSettings = {
     { id: "bangalore", label: "Bangalore, India", lat: 12.9716, lon: 77.5946 },
   ],
   activeLocationId: "kerala",
+  appIcons: {},
 };
 
 function readSettings(): AppSettings {
