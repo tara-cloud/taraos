@@ -4,6 +4,7 @@ import { readInstalled } from "@/lib/installedApps";
 import { k8sAuth } from "@/lib/helm";
 import type { InstalledAppStatus } from "@/lib/installedApps";
 import http from "node:http";
+import https from "node:https";
 
 // 30-min Docker Hub tag cache
 const hubCache = new Map<string, { tag: string; ts: number }>();
@@ -26,24 +27,33 @@ async function getLatestDockerTag(dockerImage: string): Promise<string> {
 }
 
 async function helmAppStatus(release: string, namespace: string, auth: ReturnType<typeof k8sAuth>): Promise<{ running: boolean; appVersion: string }> {
-  try {
-    // Check deployment readiness via k8s API (no helm CLI needed)
-    const url = `${auth.apiserver}/apis/apps/v1/namespaces/${namespace}/deployments/${release}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        Accept: "application/json",
-      },
-      // @ts-expect-error node fetch supports agent
-      agent: false, // skip TLS verification for in-cluster
+  return new Promise((resolve) => {
+    if (!auth.token) { resolve({ running: false, appVersion: "latest" }); return; }
+    const url = new URL(`${auth.apiserver}/apis/apps/v1/namespaces/${namespace}/deployments/${release}`);
+    const opts = {
+      hostname: url.hostname,
+      port: url.port || 443,
+      path: url.pathname,
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.token}`, Accept: "application/json" },
+      rejectUnauthorized: false,
+    };
+    const req = https.request(opts, (res) => {
+      let body = "";
+      res.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+      res.on("end", () => {
+        try {
+          const data = JSON.parse(body) as { status?: { readyReplicas?: number }; spec?: { template?: { spec?: { containers?: { image?: string }[] } } } };
+          const running = (data.status?.readyReplicas ?? 0) > 0;
+          const image = data.spec?.template?.spec?.containers?.[0]?.image ?? "";
+          resolve({ running, appVersion: image.split(":").pop() ?? "latest" });
+        } catch { resolve({ running: false, appVersion: "latest" }); }
+      });
     });
-    if (!res.ok) return { running: false, appVersion: "latest" };
-    const data = await res.json() as { status?: { readyReplicas?: number }; spec?: { template?: { spec?: { containers?: { image?: string }[] } } } };
-    const running = (data.status?.readyReplicas ?? 0) > 0;
-    const image = data.spec?.template?.spec?.containers?.[0]?.image ?? "";
-    const appVersion = image.split(":").pop() ?? "latest";
-    return { running, appVersion };
-  } catch { return { running: false, appVersion: "latest" }; }
+    req.on("error", () => resolve({ running: false, appVersion: "latest" }));
+    req.setTimeout(8000, () => { req.destroy(); resolve({ running: false, appVersion: "latest" }); });
+    req.end();
+  });
 }
 
 async function dockerAppStatus(containerName: string): Promise<{ running: boolean; imageTag: string }> {

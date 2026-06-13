@@ -3,7 +3,7 @@
 
 image:
   repository: pmananthu/taraos
-  tag: "2.6.0"
+  tag: "2.6.1"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
