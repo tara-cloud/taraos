@@ -51,6 +51,7 @@ export default function ClockWidget() {
   const [clockFontSize, setClockFontSize] = useState(60);
   const [dateFormat, setDateFormat]       = useState("full");
   const [tithiUrl, setTithiUrl]           = useState("");
+  const [tithiTick, setTithiTick]         = useState(0);
   const [events, setEvents] = useState<EventMap>(() => {
     if (globalThis.window === undefined) return SAMPLE_EVENTS;
     try {
@@ -65,6 +66,13 @@ export default function ClockWidget() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Refresh Tithi events every 30 s so new events appear without a page reload
+  useEffect(() => {
+    if (!tithiUrl) return;
+    const id = setInterval(() => setTithiTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [tithiUrl]);
 
   useEffect(() => {
     async function loadClockSettings() {
@@ -108,8 +116,7 @@ export default function ClockWidget() {
         setEvents(map);
       })
       .catch(() => {/* Tithi unreachable — keep localStorage events */});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tithiUrl, now.getMonth()]);
+  }, [tithiUrl, tithiTick]);
 
   function saveEvents(next: EventMap) {
     setEvents(next);
