@@ -10,7 +10,7 @@ const MONTHS = [
 ];
 
 interface Event {
-  id: number;
+  id: number | string;
   title: string;
   time: string;
   color: string;
@@ -50,6 +50,7 @@ export default function ClockWidget() {
   const [clockFont, setClockFont]         = useState("system");
   const [clockFontSize, setClockFontSize] = useState(60);
   const [dateFormat, setDateFormat]       = useState("full");
+  const [tithiUrl, setTithiUrl]           = useState("");
   const [events, setEvents] = useState<EventMap>(() => {
     if (globalThis.window === undefined) return SAMPLE_EVENTS;
     try {
@@ -80,12 +81,35 @@ export default function ClockWidget() {
       setClockFont(s.clockFont);
       setClockFontSize(s.clockSize);
       setDateFormat(s.dateFormat);
+      if (s.tithiUrl) setTithiUrl(s.tithiUrl);
     }
     loadClockSettings();
     function onStorage() { loadClockSettings(); }
     globalThis.addEventListener("storage", onStorage);
     return () => globalThis.removeEventListener("storage", onStorage);
   }, []);
+
+  // Load events: from Tithi API when configured, otherwise localStorage
+  useEffect(() => {
+    if (!tithiUrl) return;
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    fetch(`${tithiUrl}/api/public/events?from=${from}&to=${to}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { id: string; title: string; startAt: string; color: string }[] | null) => {
+        if (!data) return;
+        const map: EventMap = {};
+        for (const ev of data) {
+          const d = new Date(ev.startAt);
+          const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          if (!map[k]) map[k] = [];
+          map[k].push({ id: ev.id, title: ev.title, time: `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`, color: ev.color });
+        }
+        setEvents(map);
+      })
+      .catch(() => {/* Tithi unreachable — keep localStorage events */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tithiUrl, now.getMonth()]);
 
   function saveEvents(next: EventMap) {
     setEvents(next);
@@ -94,6 +118,8 @@ export default function ClockWidget() {
 
   function addEvent() {
     if (!newTitle.trim()) return;
+    // When Tithi is connected, open it instead of adding locally
+    if (tithiUrl) { window.open(tithiUrl, "_blank"); setAdding(false); return; }
     const key = dateKey(selected);
     const existing = events[key] ?? [];
     const color = EVENT_COLORS[existing.length % EVENT_COLORS.length];
@@ -105,7 +131,8 @@ export default function ClockWidget() {
     setAdding(false);
   }
 
-  function deleteEvent(key: string, id: number) {
+  function deleteEvent(key: string, id: number | string) {
+    if (tithiUrl) { window.open(tithiUrl, "_blank"); return; }
     const next = { ...events, [key]: (events[key] ?? []).filter((e) => e.id !== id) };
     if (!next[key].length) delete next[key];
     saveEvents(next);
@@ -240,7 +267,14 @@ export default function ClockWidget() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Events</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6 }}>
+                Events
+                {tithiUrl && (
+                  <a href={tithiUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: "rgba(255,255,255,0.30)", textDecoration: "none", padding: "1px 5px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 4 }}>
+                    Tithi ↗
+                  </a>
+                )}
+              </div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 500, marginTop: 2 }}>{selLabel}</div>
             </div>
             <button

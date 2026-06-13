@@ -33,6 +33,7 @@ type PageKey =
   | "display.apps"
   | "clock.format"
   | "location.locations"
+  | "integrations.tithi"
   | "apps.list"
   | `apps.${string}`;
 
@@ -65,6 +66,13 @@ const SIDEBAR = [
     label: "Location",
     items: [
       { key: "location.locations" as PageKey, label: "Locations" },
+    ],
+  },
+  {
+    key: "integrations",
+    label: "Integrations",
+    items: [
+      { key: "integrations.tithi" as PageKey, label: "Tithi Calendar" },
     ],
   },
 ];
@@ -101,6 +109,7 @@ export default function SettingsPage() {
   const [bgImage, setBgImage] = useState("");
   const [appIconSize,  setAppIconSize]  = useState(56);
   const [appLabelSize, setAppLabelSize] = useState(11);
+  const [tithiUrl, setTithiUrl]         = useState("");
 
   // Clock settings
   const [clockFormat, setClockFormat]     = useState<"12" | "24">("24");
@@ -143,6 +152,7 @@ export default function SettingsPage() {
       if (s.appIcons) setAppIcons(s.appIcons);
       if (s.appIconSize)  setAppIconSize(s.appIconSize);
       if (s.appLabelSize) setAppLabelSize(s.appLabelSize);
+      if (s.tithiUrl !== undefined) setTithiUrl(s.tithiUrl);
     });
     // Load installed k3s apps + remote catalog for icons
     fetch("/api/store/installed")
@@ -584,6 +594,53 @@ export default function SettingsPage() {
         );
       }
 
+      case "integrations.tithi": {
+        return (
+          <>
+            <SectionTitle>Tithi Calendar</SectionTitle>
+            <Card>
+              <Row>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.60)", marginBottom: 10, lineHeight: 1.6 }}>
+                  Connect your Tithi calendar app so the clock widget shows your events instead of local ones.
+                  Enter the URL where Tithi is running on your network.
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 12px", color: "rgba(255,255,255,0.90)", fontSize: 13, outline: "none" }}
+                    placeholder="http://192.168.0.107:30302"
+                    value={tithiUrl}
+                    onChange={e => setTithiUrl(e.target.value)}
+                    onBlur={() => saveSettings({ tithiUrl })}
+                  />
+                  {tithiUrl && (
+                    <a href={tithiUrl} target="_blank" rel="noreferrer"
+                      style={{ padding: "8px 14px", background: "rgba(0,113,227,0.25)", border: "1px solid rgba(0,113,227,0.40)", borderRadius: 8, color: "rgba(255,255,255,0.85)", fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      Open ↗
+                    </a>
+                  )}
+                </div>
+                {tithiUrl && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+                    Events will be fetched from <code style={{ color: "rgba(255,255,255,0.55)" }}>{tithiUrl}/api/public/events</code>
+                  </div>
+                )}
+              </Row>
+              <Row last>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.60)" }}>Clear connection</span>
+                  <button
+                    onClick={() => { setTithiUrl(""); saveSettings({ tithiUrl: "" }); }}
+                    style={{ padding: "6px 14px", background: "rgba(255,59,48,0.15)", border: "1px solid rgba(255,59,48,0.35)", borderRadius: 8, color: "rgba(255,59,48,0.85)", fontSize: 13, cursor: "pointer" }}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </Row>
+            </Card>
+          </>
+        );
+      }
+
       default: {
         // apps.<id> — per-app settings page
         const appId = active.startsWith("apps.") ? active.slice(5) : null;
@@ -753,6 +810,7 @@ export default function SettingsPage() {
     "general.update": "🔄", "display.theme": "🎨", "display.background": "🖼️",
     "display.apps": "🔢",
     "clock.format": "🕐", "location.locations": "📍",
+    "integrations.tithi": "📅",
   };
 
   return (

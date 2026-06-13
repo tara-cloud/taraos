@@ -18,6 +18,7 @@ export interface AppSettings {
   appIcons:    Record<string, string>; // appId → custom iconUrl or emoji
   appIconSize: number;   // icon size in px (default 56)
   appLabelSize: number;  // label font size in px (default 11)
+  tithiUrl:    string;   // Tithi calendar app URL e.g. http://192.168.0.107:30302
 }
 
 const DEFAULTS: AppSettings = {
@@ -37,6 +38,7 @@ const DEFAULTS: AppSettings = {
   appIcons: {},
   appIconSize: 56,
   appLabelSize: 11,
+  tithiUrl: "",
 };
 
 function readSettings(): AppSettings {
