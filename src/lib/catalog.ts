@@ -31,46 +31,10 @@ export interface CatalogApp {
   externalDocker?: boolean;
 }
 
-// ── Static fallback: CasaOS apps already running in Docker ────────────────────
-// These are not in the remote registry. They appear in the launcher with a
-// status dot and Open button but cannot be installed/uninstalled from TaraOS.
+// ── Static fallback: CasaOS apps still running in Docker (not yet migrated to k3s) ──
+// These appear in the launcher with a status dot and Open button only.
+// Migrated apps (venus, aries, docvault, immich) are now in installed-apps.json.
 export const CATALOG: CatalogApp[] = [
-  {
-    id: "venus-budget",
-    name: "Venus Budget",
-    icon: "💰",
-    description: "Personal finance tracker with accounts, transactions and budgets.",
-    category: "productivity",
-    color: "#1c7ed6",
-    dockerImage: "pmananthu/venus-budget",
-    defaultPort: 3000,
-    containerName: "venus-budget-app-1",
-    externalDocker: true,
-  },
-  {
-    id: "aries",
-    name: "Aries",
-    icon: "💊",
-    description: "Family health records and medication tracker.",
-    category: "productivity",
-    color: "#12b886",
-    dockerImage: "pmananthu/aries",
-    defaultPort: 3001,
-    containerName: "aries-app-1",
-    externalDocker: true,
-  },
-  {
-    id: "docvault",
-    name: "DocVault",
-    icon: "📄",
-    description: "Document storage and management.",
-    category: "storage",
-    color: "#f76707",
-    dockerImage: "pmananthu/docvault",
-    defaultPort: 9091,
-    containerName: "docvault",
-    externalDocker: true,
-  },
   {
     id: "dht11",
     name: "DHT11 Dashboard",
@@ -93,18 +57,6 @@ export const CATALOG: CatalogApp[] = [
     dockerImage: "linuxserver/navidrome",
     defaultPort: 4533,
     containerName: "navidrome",
-    externalDocker: true,
-  },
-  {
-    id: "immich-casaos",
-    name: "Immich",
-    icon: "📷",
-    description: "Photo and video backup running via CasaOS Docker.",
-    category: "media",
-    color: "#1971c2",
-    dockerImage: "ghcr.io/immich-app/immich-server",
-    defaultPort: 2283,
-    containerName: "immich_server",
     externalDocker: true,
   },
   {
