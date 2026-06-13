@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadSettings, saveSettings } from "@/lib/settings";
+import { fetchRemoteCatalog } from "@/lib/remoteCatalog";
+import { getCatalogApp } from "@/lib/catalog";
 import { frameUrl } from "@/lib/frame";
 import type { WeatherLocation } from "@/lib/locations";
 import type { UpdateInfo } from "@/app/api/update/route";
+import type { InstalledAppStatus } from "@/lib/installedApps";
+import type { CatalogApp } from "@/lib/catalog";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -26,7 +30,9 @@ type PageKey =
   | "display.theme"
   | "display.background"
   | "clock.format"
-  | "location.locations";
+  | "location.locations"
+  | "apps.list"
+  | `apps.${string}`;
 
 const SIDEBAR = [
   {
@@ -97,6 +103,11 @@ export default function SettingsPage() {
   const [clockFontSize, setClockFontSize] = useState(60);
   const [dateFormat, setDateFormat]       = useState("full");
 
+  // Installed apps (k3s/helm only)
+  const [installedApps, setInstalledApps] = useState<InstalledAppStatus[]>([]);
+  const [remoteCatalog, setRemoteCatalog] = useState<CatalogApp[]>([]);
+  const [appActions, setAppActions]       = useState<Record<string, string>>({});
+
   // Locations state
   const [locations, setLocations] = useState<WeatherLocation[]>([]);
   const [newLabel, setNewLabel]   = useState("");
@@ -123,6 +134,12 @@ export default function SettingsPage() {
       setDateFormat(s.dateFormat);
       setLocations(s.locations);
     });
+    // Load installed k3s apps + remote catalog for icons
+    fetch("/api/store/installed")
+      .then((r) => r.json())
+      .then((data: InstalledAppStatus[]) => setInstalledApps(data.filter((a) => a.installMethod === "helm")))
+      .catch(() => {});
+    fetchRemoteCatalog().then(setRemoteCatalog).catch(() => {});
   }, []);
 
   async function checkUpdate() {
@@ -183,6 +200,28 @@ export default function SettingsPage() {
   function setClockFormatAndSave(v: "12"|"24") { setClockFormat(v); saveSettings({ clockFormat: v }); }
   function setClockFontAndSave(v: string)      { setClockFont(v);   saveSettings({ clockFont: v }); }
   function setDateFormatAndSave(v: string)     { setDateFormat(v);  saveSettings({ dateFormat: v }); }
+
+  function resolveAppCatalog(id: string): CatalogApp | undefined {
+    return remoteCatalog.find((a) => a.id === id) ?? getCatalogApp(id);
+  }
+
+  async function doAppAction(id: string, action: "uninstall" | "update") {
+    setAppActions((prev) => ({ ...prev, [id]: action }));
+    try {
+      const res = await fetch(`/api/store/${action}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+      });
+      const data = await res.json() as { ok: boolean; message?: string };
+      setAppActions((prev) => ({ ...prev, [id]: data.ok ? "done" : `error: ${data.message ?? "failed"}` }));
+      if (data.ok) {
+        const r = await fetch("/api/store/installed");
+        const d: InstalledAppStatus[] = await r.json();
+        setInstalledApps(d.filter((a) => a.installMethod === "helm"));
+      }
+    } catch {
+      setAppActions((prev) => ({ ...prev, [id]: "error: network" }));
+    }
+  }
 
   async function addLocation() {
     const lat = Number.parseFloat(newLat);
@@ -469,14 +508,121 @@ export default function SettingsPage() {
           </>
         );
       }
+
+      default: {
+        // apps.<id> — per-app settings page
+        const appId = active.startsWith("apps.") ? active.slice(5) : null;
+        const appStatus = appId ? installedApps.find((a) => a.id === appId) : null;
+        const appCatalog = appId ? resolveAppCatalog(appId) : null;
+        const action = appId ? appActions[appId] : null;
+        const hostname = globalThis.window === undefined ? "pi" : globalThis.location.hostname;
+
+        if (!appId || !appStatus) return null;
+        return (
+          <>
+            {/* App header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, background: `${appCatalog?.color ?? "#495057"}22`, border: `1px solid ${appCatalog?.color ?? "#495057"}44`, flexShrink: 0 }}>
+                {appCatalog?.icon ?? "📦"}
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: "rgba(255,255,255,0.90)" }}>{appCatalog?.name ?? appId}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.40)", marginTop: 2 }}>{appCatalog?.description ?? ""}</div>
+              </div>
+            </div>
+
+            <SectionTitle>Status</SectionTitle>
+            <Card>
+              <Row>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Running</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: appStatus.running ? "#34c759" : "#ff3b30" }}>
+                    {appStatus.running ? "● Running" : "● Stopped"}
+                  </span>
+                </div>
+              </Row>
+              <Row>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Version</span>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "monospace" }}>{appStatus.currentImageTag}</span>
+                </div>
+              </Row>
+              <Row>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Port</span>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "monospace" }}>{appStatus.port}</span>
+                </div>
+              </Row>
+              <Row>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Namespace</span>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "monospace" }}>{appStatus.helmNamespace}</span>
+                </div>
+              </Row>
+              <Row last>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Installed</span>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{appStatus.installedAt ? new Date(appStatus.installedAt).toLocaleDateString() : "—"}</span>
+                </div>
+              </Row>
+            </Card>
+
+            <SectionTitle mt={20}>Actions</SectionTitle>
+            <Card>
+              {appStatus.running && (
+                <Row>
+                  <Link href={frameUrl(`http://${hostname}:${appStatus.port}`, appCatalog?.name ?? appId)}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none" }}>
+                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Open App</span>
+                    <span style={{ fontSize: 12, color: "#34c759" }}>↗</span>
+                  </Link>
+                </Row>
+              )}
+              {appStatus.hasUpdate && (
+                <Row>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Update Available</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,149,0,0.80)", marginTop: 2, fontFamily: "monospace" }}>{appStatus.currentImageTag} → {appStatus.latestTag}</div>
+                    </div>
+                    <button type="button" onClick={() => doAppAction(appId, "update")} disabled={!!action && action !== "done"}
+                      style={{ fontSize: 12, fontWeight: 600, padding: "5px 14px", background: "rgba(255,149,0,0.25)", border: "1px solid rgba(255,149,0,0.50)", borderRadius: 8, color: "#ff9500", cursor: "pointer" }}>
+                      {action === "update" ? "⟳ Updating…" : "Update"}
+                    </button>
+                  </div>
+                </Row>
+              )}
+              <Row last>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.82)" }}>Uninstall</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 2 }}>Removes k3s release and namespace</div>
+                  </div>
+                  <button type="button" onClick={() => doAppAction(appId, "uninstall")} disabled={!!action && action !== "done"}
+                    style={{ fontSize: 12, padding: "5px 14px", background: "rgba(255,59,48,0.15)", border: "1px solid rgba(255,59,48,0.30)", borderRadius: 8, color: "#ff3b30", cursor: "pointer" }}>
+                    {action === "uninstall" ? "⟳ Removing…" : "Uninstall"}
+                  </button>
+                </div>
+              </Row>
+            </Card>
+
+            {action && action !== "update" && action !== "uninstall" && (
+              <div style={{ marginTop: 10, fontSize: 12, color: action.startsWith("error") ? "#ff3b30" : "#34c759" }}>{action}</div>
+            )}
+          </>
+        );
+      }
     }
   }
 
   // Mobile: "list" shows the menu, "detail" shows the selected setting
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   function selectSetting(key: PageKey) { setActive(key); setMobileView("detail"); }
-  const activeSectionLabel = SIDEBAR.find((s) => s.items.some((i) => i.key === active))?.label ?? "Settings";
-  const activeItemLabel    = SIDEBAR.flatMap((s) => s.items).find((i) => i.key === active)?.label ?? "";
+  const isAppPage = active.startsWith("apps.");
+  const activeAppId = isAppPage ? active.slice(5) : null;
+  const activeAppCatalog = activeAppId ? resolveAppCatalog(activeAppId) : null;
+  const activeSectionLabel = isAppPage ? "Apps" : (SIDEBAR.find((s) => s.items.some((i) => i.key === active))?.label ?? "Settings");
+  const activeItemLabel    = isAppPage ? (activeAppCatalog?.name ?? activeAppId ?? "") : (SIDEBAR.flatMap((s) => s.items).find((i) => i.key === active)?.label ?? "");
   const ICONS: Record<string, string> = {
     "general.update": "🔄", "display.theme": "🎨", "display.background": "🖼️",
     "clock.format": "🕐", "location.locations": "📍",
@@ -527,6 +673,29 @@ export default function SettingsPage() {
               </div>
             </div>
           ))}
+          {/* Dynamic Apps section — helm-installed only */}
+          {installedApps.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 8px", marginBottom: 6 }}>Apps</div>
+              <div className="glass-widget" style={{ padding: 0, overflow: "hidden" }}>
+                {installedApps.map((app, i) => {
+                  const cat = resolveAppCatalog(app.id);
+                  const key = `apps.${app.id}` as PageKey;
+                  return (
+                    <button key={app.id} type="button" onClick={() => setActive(key)} style={{
+                      width: "100%", background: active === key ? "rgba(0,113,227,0.18)" : "transparent",
+                      border: "none", borderBottom: i < installedApps.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                      padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "background 0.12s",
+                    }}>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>{cat?.icon ?? "📦"}</span>
+                      <span style={{ flex: 1, fontSize: 14, color: active === key ? "#fff" : "rgba(255,255,255,0.72)", textAlign: "left" }}>{cat?.name ?? app.id}</span>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: app.running ? "#34c759" : "rgba(255,255,255,0.25)", flexShrink: 0, boxShadow: app.running ? "0 0 5px #34c759" : "none" }} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>{renderDetail()}</div>
       </div>
@@ -553,6 +722,30 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+            {/* Apps section — mobile */}
+            {installedApps.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 4px", marginBottom: 8 }}>Apps</div>
+                <div className="glass-widget" style={{ padding: 0, overflow: "hidden" }}>
+                  {installedApps.map((app, i) => {
+                    const cat = resolveAppCatalog(app.id);
+                    const key = `apps.${app.id}` as PageKey;
+                    return (
+                      <button key={app.id} type="button" onClick={() => selectSetting(key)} style={{
+                        width: "100%", background: "transparent", border: "none",
+                        borderBottom: i < installedApps.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                        padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                      }}>
+                        <span style={{ fontSize: 22, width: 32, textAlign: "center", flexShrink: 0 }}>{cat?.icon ?? "📦"}</span>
+                        <span style={{ flex: 1, fontSize: 15, color: "rgba(255,255,255,0.85)", textAlign: "left" }}>{cat?.name ?? app.id}</span>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: app.running ? "#34c759" : "rgba(255,255,255,0.25)", flexShrink: 0 }} />
+                        <span style={{ fontSize: 16, color: "rgba(255,255,255,0.25)" }}>›</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div>
