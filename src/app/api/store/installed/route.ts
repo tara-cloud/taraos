@@ -27,9 +27,20 @@ async function getLatestDockerTag(dockerImage: string): Promise<string> {
 }
 
 async function helmAppStatus(release: string, namespace: string, auth: ReturnType<typeof k8sAuth>): Promise<{ running: boolean; appVersion: string }> {
+  // Try the release name first, then common sub-deployment patterns (e.g. immich → immich-server)
+  const candidates = [release, `${release}-server`, `${release}-app`];
+
+  for (const name of candidates) {
+    const result = await fetchDeploymentStatus(name, namespace, auth);
+    if (result !== null) return result;
+  }
+  return { running: false, appVersion: "latest" };
+}
+
+async function fetchDeploymentStatus(name: string, namespace: string, auth: ReturnType<typeof k8sAuth>): Promise<{ running: boolean; appVersion: string } | null> {
   return new Promise((resolve) => {
-    if (!auth.token) { resolve({ running: false, appVersion: "latest" }); return; }
-    const url = new URL(`${auth.apiserver}/apis/apps/v1/namespaces/${namespace}/deployments/${release}`);
+    if (!auth.token) { resolve(null); return; }
+    const url = new URL(`${auth.apiserver}/apis/apps/v1/namespaces/${namespace}/deployments/${name}`);
     const opts = {
       hostname: url.hostname,
       port: url.port || 443,
@@ -43,15 +54,16 @@ async function helmAppStatus(release: string, namespace: string, auth: ReturnTyp
       res.on("data", (chunk: Buffer) => { body += chunk.toString(); });
       res.on("end", () => {
         try {
+          if (res.statusCode === 404) { resolve(null); return; }
           const data = JSON.parse(body) as { status?: { readyReplicas?: number }; spec?: { template?: { spec?: { containers?: { image?: string }[] } } } };
           const running = (data.status?.readyReplicas ?? 0) > 0;
           const image = data.spec?.template?.spec?.containers?.[0]?.image ?? "";
           resolve({ running, appVersion: image.split(":").pop() ?? "latest" });
-        } catch { resolve({ running: false, appVersion: "latest" }); }
+        } catch { resolve(null); }
       });
     });
-    req.on("error", () => resolve({ running: false, appVersion: "latest" }));
-    req.setTimeout(8000, () => { req.destroy(); resolve({ running: false, appVersion: "latest" }); });
+    req.on("error", () => resolve(null));
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
     req.end();
   });
 }
